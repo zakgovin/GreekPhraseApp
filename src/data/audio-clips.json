@@ -1,0 +1,28 @@
+{
+  "listen-2017": {
+    "file": "exam-registration-2017.mp3",
+    "title": "Запись на экзамен",
+    "sourceFile": "A2_2017.mp3",
+    "sourceSha256": "549f7616ce82322f2e63e1224781ae7852d3f384d839ea44a1e6952fe800de27",
+    "sourceDurationSeconds": 1954.115918,
+    "startSeconds": 1623.25,
+    "endSeconds": 1710.65,
+    "durationSeconds": 87.431837,
+    "bytes": 699706,
+    "sha256": "9cdecd634e6278c2348fb16e4fded6dd5683ab961493f7304c463498a87832ad",
+    "note": "Один диалог из задания 4, без инструкций экзаменатора, повторного проигрывания и длинных пауз."
+  },
+  "listen-2018": {
+    "file": "food-order-2018.mp3",
+    "title": "Заказ еды по телефону",
+    "sourceFile": "A2_2018.mp3",
+    "sourceSha256": "e991fcd9decdb012a0126d1ac55c432391a7cfc9cf40091a3bca130313b608d4",
+    "sourceDurationSeconds": 1985.985306,
+    "startSeconds": 1621.15,
+    "endSeconds": 1725.0,
+    "durationSeconds": 103.88898,
+    "bytes": 831363,
+    "sha256": "2048361054a9b91ac31a82db60c4bba421caafcf86a239ac8856130f7129f3ec",
+    "note": "Один диалог из задания 4, без инструкций экзаменатора, повторного проигрывания и длинных пауз."
+  }
+}
