@@ -262,9 +262,17 @@ export function Sources({
           const s = sources[id];
           return s ? (
             <article className="source-entry" key={id}>
-              <span className="eyebrow">{s.year} · A2</span>
+              <span className="eyebrow">
+                {s.kind === "user_list"
+                  ? "Список вопросов от Захара"
+                  : `${s.year} · A2`}
+              </span>
               <h3>{s.description}</h3>
-              <p>Κέντρο Ελληνικής Γλώσσας · ελληνομάθεια</p>
+              <p>
+                {s.kind === "user_list"
+                  ? "Авторские ответы по твоим личным сведениям"
+                  : "Κέντρο Ελληνικής Γλώσσας · ελληνομάθεια"}
+              </p>
               {s.printed_page && <p>Страница сборника: {s.printed_page}</p>}
             </article>
           ) : null;
@@ -283,7 +291,17 @@ export function SourceButton({
   return (
     <button className="source-button" onClick={() => onClick(ids)}>
       <Info size={14} /> Источник ·{" "}
-      {Array.from(new Set(ids.map((id) => sources[id]?.year))).join(", ")}
+      {Array.from(
+        new Set(
+          ids
+            .map((id) =>
+              sources[id]?.kind === "user_list"
+                ? "твой список"
+                : sources[id]?.year,
+            )
+            .filter(Boolean),
+        ),
+      ).join(", ")}
     </button>
   );
 }

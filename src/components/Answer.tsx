@@ -59,6 +59,7 @@ export function Answer({
   onSubmit,
   onHelp,
   onRecognitionFailure,
+  instruction = "Собери фразу из урока",
 }: {
   expected: string;
   kind: ExerciseKind;
@@ -68,6 +69,7 @@ export function Answer({
   onSubmit: (answer: string, method: AnswerMethod) => void;
   onHelp: () => void;
   onRecognitionFailure?: () => void;
+  instruction?: string;
 }) {
   const voice = useSpeechAnswer();
   const exercise = lessonExercise(expected, kind, seed);
@@ -184,7 +186,7 @@ export function Answer({
         >
           {mode === "words" ? (
             <>
-              <p className="exercise-instruction">Собери фразу из урока</p>
+              <p className="exercise-instruction">{instruction}</p>
               <WordOrder
                 words={exercise.tiles}
                 order={selected}

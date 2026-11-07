@@ -15,7 +15,7 @@ import { Answer } from "../components/Answer";
 import { Pill, SourceButton, Speak } from "../components/common";
 
 export function Conversations() {
-  const { progress: p } = useApp();
+  const { progress: p, navigate } = useApp();
   const [selected, setSelected] = useState<string | null>(() => {
     try {
       return sessionStorage.getItem("frasi.openConversation");
@@ -53,6 +53,17 @@ export function Conversations() {
         </div>
         <Pill tone="outline">{conversations.length} бесед и ситуаций</Pill>
       </div>
+      <button
+        className="exam-question-feature"
+        onClick={() => navigate("questions")}
+      >
+        <MessageCircle size={27} />
+        <span>
+          <strong>Вопросы экзаменатора</strong>
+          <span>Твой список вопросов и личные ответы</span>
+        </span>
+        <ArrowRight size={20} />
+      </button>
       <div className="segmented" aria-label="Тип беседы">
         {[
           { id: "all", label: "Все темы" },

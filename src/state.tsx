@@ -8,6 +8,7 @@ import type { Progress, LessonOptions } from "./lib/progress";
 export type Page =
   | "today"
   | "conversation"
+  | "questions"
   | "exam"
   | "phrases"
   | "progress"

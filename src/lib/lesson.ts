@@ -1,4 +1,4 @@
-import { normalize, phrases } from "./content";
+import { normalize, phrases, courseProperWords } from "./content";
 
 export type ExerciseKind = "assemble" | "complete" | "recall";
 export type AnswerMethod = "words" | "text" | "speech";
@@ -83,6 +83,7 @@ export const phraseWords = (text: string) =>
 const properWords = new Set(
   "Ζαχάρ Άπω Ανατολή Αγίου Λαζάρου Κύπρος Κύπρο Κύπρου Λάρνακα Λάρνακας Μπλαγκοβέστσενσκ Ρωσία Ρωσίας Δευτέρα Τρίτη Τετάρτη Πέμπτη Παρασκευή Σάββατο Κυριακή Δεκεμβρίου Ιουνίου"
     .split(" ")
+    .concat(courseProperWords)
     .map(answerKey),
 );
 export function wordTile(word: string) {

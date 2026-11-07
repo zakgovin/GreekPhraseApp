@@ -16,6 +16,7 @@ import { AppContext, type Page } from "./state";
 import { Today, Library, ProgressPage, SettingsPage } from "./pages/Pages";
 import { Study } from "./pages/Study";
 import { Conversations } from "./pages/Conversations";
+import { ExamQuestions } from "./pages/ExamQuestions";
 import { Exams } from "./pages/Exams";
 import { Modal, Sources, SpeechProvider } from "./components/common";
 import {
@@ -40,6 +41,7 @@ const navigation = [
 const pages: Page[] = [
   "today",
   "conversation",
+  "questions",
   "exam",
   "phrases",
   "progress",
@@ -163,6 +165,8 @@ export default function App() {
       <Today />
     ) : page === "conversation" ? (
       <Conversations />
+    ) : page === "questions" ? (
+      <ExamQuestions />
     ) : page === "exam" ? (
       <Exams />
     ) : page === "phrases" ? (
@@ -218,7 +222,9 @@ export default function App() {
                     href={"#" + n.id}
                     key={n.id}
                     className={
-                      page === n.id || (page === "study" && n.id === "today")
+                      page === n.id ||
+                      (page === "study" && n.id === "today") ||
+                      (page === "questions" && n.id === "conversation")
                         ? "active"
                         : ""
                     }
@@ -268,7 +274,11 @@ export default function App() {
                   <i>/</i>
                   <strong>
                     {navigation.find((n) => n.id === page)?.label ??
-                      (page === "settings" ? "Настройки" : "Занятие")}
+                      (page === "settings"
+                        ? "Настройки"
+                        : page === "questions"
+                          ? "Вопросы экзаменатора"
+                          : "Занятие")}
                   </strong>
                 </div>
                 <div className="topbar-right">
@@ -315,7 +325,9 @@ export default function App() {
                   key={n.id}
                   href={"#" + n.id}
                   className={
-                    page === n.id || (page === "study" && n.id === "today")
+                    page === n.id ||
+                    (page === "study" && n.id === "today") ||
+                    (page === "questions" && n.id === "conversation")
                       ? "active"
                       : ""
                   }

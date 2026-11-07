@@ -1,7 +1,7 @@
 {
   "name": "greek-phrase-app",
   "private": true,
-  "version": "0.3.1",
+  "version": "0.4.0",
   "type": "module",
   "engines": {
     "node": ">=24.0.0"
@@ -12,6 +12,9 @@
     "prebuild": "node scripts/check-media.mjs",
     "media:check": "node scripts/check-media.mjs",
     "android:build": "node scripts/build-android.mjs",
+    "android:key:check": "node scripts/android-signing.mjs",
+    "android:key:restore": "node scripts/android-signing.mjs restore",
+    "android:key:test": "node scripts/test-android-signing.mjs",
     "android:sync": "npm run build && cap sync android",
     "android:open": "cap open android",
     "preview": "vite preview --host 0.0.0.0",

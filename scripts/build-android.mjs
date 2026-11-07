@@ -10,6 +10,7 @@ import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { verifyApkMedia } from "./media-assets.mjs";
+import { assertSigningKey, signingPaths } from "./android-signing.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const tools = process.env.FRASI_ANDROID_TOOLS || "/workspace/android-tools";
@@ -28,6 +29,8 @@ if (
     "Install JDK 21 and Android SDK 36, and set JAVA_HOME and ANDROID_HOME. See docs/ANDROID.md.",
   );
 }
+env.FRASI_ANDROID_KEYSTORE = signingPaths(env).key;
+const signingCertificate = assertSigningKey(env);
 const managed = existsSync("/etc/codex/network-policy.json");
 const args = ["--no-daemon", "--max-workers=2", "--console=plain"];
 if (managed) {
@@ -92,15 +95,37 @@ copyFileSync(
   join(root, "android/app/build/outputs/apk/debug/app-debug.apk"),
   apk,
 );
-run(join(env.ANDROID_HOME, "build-tools/36.0.0/apksigner"), [
-  "verify",
-  "--verbose",
-  apk,
-]);
+const signature = spawnSync(
+  join(env.ANDROID_HOME, "build-tools/36.0.0/apksigner"),
+  ["verify", "--verbose", "--print-certs", apk],
+  { env, encoding: "utf8" },
+);
+if (signature.error || signature.status !== 0)
+  throw new Error("APK signature verification failed.");
+const apkCertificate = signature.stdout
+  .match(/Signer #1 certificate SHA-256 digest: ([a-f0-9]{64})/i)?.[1]
+  .toLowerCase();
+if (apkCertificate !== signingCertificate)
+  throw new Error(
+    "APK signing certificate differs from the pinned certificate.",
+  );
+console.log(signature.stdout.trim());
 const sha = createHash("sha256").update(readFileSync(apk)).digest("hex");
 writeFileSync(apk + ".sha256", `${sha}  frasi-${version}-android.apk\n`);
 writeFileSync(
   join(output, `frasi-${version}-media-audit.json`),
   JSON.stringify({ version, sha256: sha, ...mediaAudit }, null, 2) + "\n",
+);
+writeFileSync(
+  join(output, `frasi-${version}-signing-audit.json`),
+  JSON.stringify(
+    {
+      version,
+      certificateSha256: apkCertificate,
+      pinnedCertificateMatches: true,
+    },
+    null,
+    2,
+  ) + "\n",
 );
 console.log(`APK: ${apk}\nSHA-256: ${sha}`);

@@ -1,4 +1,5 @@
 import raw from "../data/phrases.json";
+import questionData from "../data/exam-questions.json";
 
 export type Skill = "understanding" | "speaking" | "writing" | "phrase";
 export type Kind =
@@ -19,17 +20,22 @@ export interface Phrase {
   context?: string;
 }
 export interface Source {
-  year: number;
-  file: string;
-  pdf_page: number;
+  year: number | null;
+  file: string | null;
+  pdf_page: number | null;
   printed_page: string | null;
   description: string;
+  kind?: "user_list";
 }
-export const phrases = raw.cards as Phrase[];
+export const phrases = [...raw.cards, ...questionData.cards] as Phrase[];
+export const courseProperWords = questionData.properWords;
 export const phraseById = Object.fromEntries(
   phrases.map((p) => [p.id, p]),
 ) as Record<string, Phrase>;
-export const sources = raw.sources as Record<string, Source>;
+export const sources = {
+  ...raw.sources,
+  [questionData.source.id]: questionData.source,
+} as Record<string, Source>;
 export const kindLabels: Record<Kind, string> = {
   personal: "Обо мне",
   roleplay: "Ролевая игра",
@@ -101,7 +107,7 @@ const groups: number[][] = [
 ];
 export function family(id: string) {
   const n = Number(id.slice(3));
-  const g = groups.find((a) => a.includes(n));
+  const g = [...questionData.families, ...groups].find((a) => a.includes(n));
   return g ? "family-" + g[0] : id;
 }
 export function normalize(value: string) {

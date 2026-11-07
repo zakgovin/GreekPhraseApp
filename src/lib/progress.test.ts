@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import baseContent from "../data/phrases.json";
+import questionContent from "../data/exam-questions.json";
 import {
   phrases,
   sources,
@@ -54,10 +56,16 @@ function complete(p: Progress) {
   return next;
 }
 describe("Reviewed content and exercise semantics", () => {
-  it("preserves 122 unique cards, 45 personal cards and valid source references", () => {
-    expect(phrases).toHaveLength(122);
-    expect(phrases.filter((c) => c.kind === "personal")).toHaveLength(45);
-    expect(new Set(phrases.map((c) => c.id)).size).toBe(122);
+  it("preserves the 122 reviewed cards and adds unique personal answers with valid sources", () => {
+    expect(baseContent.cards).toHaveLength(122);
+    expect(baseContent.cards.filter((c) => c.kind === "personal")).toHaveLength(
+      45,
+    );
+    expect(phrases).toHaveLength(157);
+    expect(phrases.filter((c) => c.kind === "personal")).toHaveLength(80);
+    expect(new Set(phrases.map((c) => c.id)).size).toBe(phrases.length);
+    expect(phrases.slice(0, 122)).toEqual(baseContent.cards);
+    expect(questionContent.cards).toHaveLength(35);
     for (const c of phrases) {
       expect(c.el).not.toMatch(/…|\.{3}|_{2,}/);
       for (const id of c.sources) expect(sources[id]).toBeDefined();

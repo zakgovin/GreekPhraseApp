@@ -8,13 +8,26 @@ android {
         applicationId "com.zakgovin.greekphraseapp"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 5
-        versionName "0.3.1"
+        versionCode 6
+        versionName "0.4.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        debug {
+            def signingPath = System.getenv("FRASI_ANDROID_KEYSTORE") ?: "/workspace/android-tools/signing/frasi.keystore"
+            def signingFile = file(signingPath)
+            if (!signingFile.isFile()) {
+                throw new GradleException("Signing key missing. Restore it using npm run android:key:restore; see docs/SIGNING.md. Do not generate a replacement.")
+            }
+            storeFile signingFile
+            storePassword "android"
+            keyAlias "AndroidDebugKey"
+            keyPassword "android"
         }
     }
     buildTypes {

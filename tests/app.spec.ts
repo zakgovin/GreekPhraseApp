@@ -176,7 +176,7 @@ test("library search ignores Greek accents and shows source attribution", async 
   page,
 }) => {
   await page.goto("/#phrases");
-  await expect(page.locator(".phrase-tile")).toHaveCount(122);
+  await expect(page.locator(".phrase-tile")).toHaveCount(157);
   await page.getByLabel("Поиск фраз", { exact: true }).fill("γειτονια");
   await expect(page.locator(".phrase-tile")).toHaveCount(1);
   await page.locator(".phrase-tile").click();
@@ -379,6 +379,7 @@ test("all sections fit the viewport and dashboard is visually reviewable", async
     "today",
     "phrases",
     "conversation",
+    "questions",
     "exam",
     "progress",
     "settings",
@@ -801,15 +802,209 @@ test("word order is accessible from the keyboard and cancelling keeps the previo
   await handle.focus();
   await handle.press("Space");
   await expect(page.locator(".word-dragging")).toHaveCount(1);
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
   await handle.press("ArrowLeft");
   await handle.press("Escape");
+  await expect(page.locator(".word-dragging")).toHaveCount(0);
   await expect.poll(() => selectedWordIds(page)).toEqual([1, 0, 2]);
   await handle.focus();
   await handle.press("Space");
   await expect(page.locator(".word-dragging")).toHaveCount(1);
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
   await handle.press("ArrowLeft");
+  await expect(page.locator('[id^="DndLiveRegion"]')).toContainText(
+    "место 1 из 3",
+  );
   await handle.press("Space");
   await expect.poll(() => selectedWordIds(page)).toEqual([0, 1, 2]);
   await page.getByRole("button", { name: "Проверить", exact: true }).click();
   await expect(page.getByText("Верно!", { exact: true })).toBeVisible();
+});
+
+test("examiner list contains all 38 questions, factual personal answers and honest source attribution", async ({
+  page,
+}, testInfo) => {
+  await page.goto("/#conversation");
+  await page.getByRole("button", { name: /Вопросы экзаменатора/ }).click();
+  await expect(
+    page.getByRole("heading", { name: "Вопросы экзаменатора", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".exam-question")).toHaveCount(38);
+  await expect(page.getByText("38 вопросов", { exact: true })).toBeVisible();
+  await page.getByLabel("Поиск вопросов", { exact: true }).fill("новости");
+  await expect(page.locator(".exam-question")).toHaveCount(1);
+  await page.locator(".exam-question summary").click();
+  await expect(page.locator(".exam-question-answer")).toContainText(
+    "Μαθαίνω τα νέα από φίλους και γνωστούς.",
+  );
+  await page
+    .getByRole("button", { name: "Источник · твой список", exact: true })
+    .click();
+  const attribution = page.getByRole("dialog", { name: "Откуда это задание" });
+  await expect(
+    attribution.getByText("Список вопросов от Захара", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    attribution.getByText("Κέντρο Ελληνικής Γλώσσας · ελληνομάθεια", {
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  await expect(attribution.getByRole("link")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await page.getByLabel("Поиск вопросов", { exact: true }).fill("");
+  await page.getByLabel("Тема вопросов", { exact: true }).selectOption("Жильё");
+  await expect(page.locator(".exam-question")).toHaveCount(2);
+  await page.locator(".exam-question").last().locator("summary").click();
+  await expect(
+    page.locator(".exam-question").last().locator(".exam-question-answer"),
+  ).toContainText("πρώτο όροφο, πάνω από το ισόγειο");
+  await expect(
+    page.locator(".exam-question").last().locator(".exam-question-answer"),
+  ).toContainText("τρία δωμάτια");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth + 1,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: testInfo.outputPath("examiner-personal-answers.png"),
+    fullPage: true,
+  });
+});
+
+test("examiner practice is three questions, saves partial word order and resumes after reload", async ({
+  page,
+}, testInfo) => {
+  await page.goto("/#questions");
+  await page
+    .getByRole("button", { name: "Потренировать 3 вопроса", exact: true })
+    .click();
+  for (let i = 0; i < 3; i++) {
+    const bar = page.getByRole("progressbar", {
+      name: "Прогресс вопросов",
+      exact: true,
+    });
+    await expect(bar).toHaveAttribute("aria-valuemax", "3");
+    await expect(bar).toHaveAttribute("aria-valuenow", String(i));
+    if (i === 1) {
+      await page.locator('.word-bank [data-word-id="0"]').click();
+      await page.reload();
+      await expect(page.locator(".sentence-answer .selected")).toHaveCount(1);
+      await expect(bar).toHaveAttribute("aria-valuenow", "1");
+    }
+    await assemble(page);
+    await expect(
+      page.getByText("Ответ получился!", { exact: true }),
+    ).toBeVisible();
+    if (i === 0) {
+      await page.reload();
+      await expect(
+        page.getByText("Ответ получился!", { exact: true }),
+      ).toBeVisible();
+    }
+    await page
+      .getByRole("button", {
+        name: i === 2 ? "Завершить блок" : "Следующий вопрос",
+        exact: true,
+      })
+      .click();
+  }
+  await expect(
+    page.getByRole("heading", { name: "Три вопроса — готово.", exact: true }),
+  ).toBeVisible();
+  const data = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("frasi.progress.v1")!),
+  );
+  expect(data.practice).toHaveLength(3);
+  expect(data.practice.map((p: { taskId: string }) => p.taskId)).toEqual([
+    "exam-q-01",
+    "exam-q-02",
+    "exam-q-03",
+  ]);
+  expect(
+    data.practice.every(
+      (p: { checked: boolean; correct: number }) =>
+        p.checked && p.correct === 1,
+    ),
+  ).toBe(true);
+  expect(data.memory).toEqual({});
+  await page.screenshot({
+    path: testInfo.outputPath("examiner-block-finished.png"),
+    fullPage: true,
+  });
+  await page
+    .getByRole("button", { name: "Ещё короткий блок", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", {
+      name: "Γιατί ήρθατε στην Κύπρο;",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("progressbar", { name: "Прогресс вопросов" }),
+  ).toHaveAttribute("aria-valuemax", "3");
+});
+
+test("a chosen examiner question is checked without accepting an invented profession", async ({
+  page,
+}) => {
+  await page.goto("/#questions");
+  await page.getByLabel("Поиск вопросов", { exact: true }).fill("Если бы");
+  await expect(page.locator(".exam-question")).toHaveCount(1);
+  await page.locator(".exam-question summary").click();
+  await expect(page.locator(".exam-question-answer")).toContainText(
+    "προϊόντων πληροφορικής",
+  );
+  await page
+    .getByRole("button", { name: "Потренировать ответ", exact: true })
+    .click();
+  await expect(
+    page.getByRole("progressbar", { name: "Прогресс вопросов" }),
+  ).toHaveAttribute("aria-valuemax", "1");
+  await page
+    .getByRole("button", { name: "Написать самому", exact: true })
+    .click();
+  await page
+    .getByLabel("Ответ по-гречески", { exact: true })
+    .fill("Θα ήθελα να είμαι γιατρός.");
+  await page.getByRole("button", { name: "Проверить", exact: true }).click();
+  await expect(
+    page.getByText("Посмотри на пример ответа", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Завершить блок", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Ответ сохранён.", exact: true }),
+  ).toBeVisible();
+  const data = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("frasi.progress.v1")!),
+  );
+  expect(data.practice).toHaveLength(1);
+  expect(data.practice[0]).toMatchObject({
+    taskId: "exam-q-17",
+    checked: true,
+    correct: 0,
+    total: 1,
+  });
+  expect(data.memory).toEqual({});
+  await page
+    .getByRole("button", { name: "К списку вопросов", exact: true })
+    .click();
+  await expect(page.getByLabel("Поиск вопросов", { exact: true })).toHaveValue(
+    "Если бы",
+  );
+  await page.getByLabel("Поиск вопросов", { exact: true }).fill("");
+  await expect(page.locator(".exam-question")).toHaveCount(38);
 });

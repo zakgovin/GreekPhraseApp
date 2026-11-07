@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { GripVertical, X } from "lucide-react";
 import {
@@ -37,7 +37,7 @@ function SortableWord({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id });
+  } = useSortable({ id, transition: null });
   return (
     <span
       ref={setNodeRef}
@@ -85,6 +85,7 @@ export function WordOrder({
   onChange: (order: number[]) => void;
 }) {
   const contextId = useId();
+  const container = useRef<HTMLDivElement>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
@@ -102,7 +103,17 @@ export function WordOrder({
         id={contextId}
         sensors={sensors}
         collisionDetection={closestCenter}
-        autoScroll={{ threshold: { x: 0.08, y: 0.08 }, acceleration: 5 }}
+        autoScroll={{
+          threshold: { x: 0.08, y: 0.08 },
+          acceleration: 5,
+          canScroll: () => {
+            const rect = container.current?.getBoundingClientRect();
+            // Moving a word inside a fully visible answer should not move the page.
+            return Boolean(
+              rect && (rect.top < 12 || rect.bottom > window.innerHeight - 90),
+            );
+          },
+        }}
         accessibility={{
           screenReaderInstructions: {
             draggable:
@@ -134,6 +145,7 @@ export function WordOrder({
       >
         <div
           className="sentence-answer"
+          ref={container}
           role="group"
           aria-label="Твой ответ"
           lang="el"
