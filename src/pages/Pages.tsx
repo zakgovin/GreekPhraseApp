@@ -39,6 +39,7 @@ import { clearRecordings } from "../lib/media";
 import { isAndroid, native } from "../lib/platform";
 import { useSpeechAnswer } from "../components/Answer";
 import { speechInput } from "../lib/speech-input";
+import packageInfo from "../../package.json";
 import {
   Empty,
   Modal,
@@ -241,15 +242,20 @@ export function Library() {
   const card = selected ? phrases.find((c) => c.id === selected) : undefined;
   return (
     <>
-      <div className="page-heading">
+      <div className="page-heading library-page-heading">
         <div>
           <p className="eyebrow">ВАШИ СЛОВА ДЛЯ ЖИЗНИ</p>
           <h1>
             Все фразы<span className="heading-dot">.</span>
           </h1>
-          <p>122 законченные фразы. В каждой — смысл, контекст и источник.</p>
+          <p>
+            Всего фраз: {phrases.length}. В каждой — смысл, контекст и источник.
+          </p>
         </div>
-        <Pill tone="outline">45 фраз о вас</Pill>
+        <Pill tone="outline">
+          Фраз о вас:{" "}
+          {phrases.filter((phrase) => phrase.kind === "personal").length}
+        </Pill>
       </div>
       <div className="library-toolbar">
         <label className="search-box">
@@ -433,7 +439,7 @@ export function ProgressPage() {
           <span>Фраз в работе</span>
           <strong>
             {stats.introduced}
-            <small> / 122</small>
+            <small> / {phrases.length}</small>
           </strong>
           <p>В курсе есть и новые, и знакомые фразы.</p>
         </div>
@@ -722,6 +728,7 @@ export function SettingsPage() {
           </div>
         </section>
       </div>
+      <p className="microcopy">Φράση · версия {packageInfo.version}</p>
       {incoming && (
         <Modal title="Восстановить прогресс?" onClose={() => setIncoming(null)}>
           <p>

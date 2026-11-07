@@ -28,6 +28,7 @@ import {
 import { SpeechAnswerProvider } from "./components/Answer";
 import "./styles.css";
 import { initialProgress, saveProgress } from "./lib/storage";
+import { phrases } from "./lib/content";
 import { isAndroid } from "./lib/platform";
 import { App as AndroidApp } from "@capacitor/app";
 
@@ -232,7 +233,7 @@ export default function App() {
                   >
                     <n.icon size={20} />
                     <span>{n.label}</span>
-                    {n.id === "phrases" && <small>122</small>}
+                    {n.id === "phrases" && <small>{phrases.length}</small>}
                   </a>
                 ))}
               </nav>

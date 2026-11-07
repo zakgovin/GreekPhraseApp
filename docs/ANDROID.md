@@ -1,15 +1,17 @@
 # Android-приложение Φράση
 
-Версия 0.4.0, Android 8.0+ (API 26), WebView 94+. Package ID: `com.zakgovin.greekphraseapp`, versionCode 6.
+Версия 0.4.1, Android 8.0+ (API 26), WebView 94+. Package ID: `com.zakgovin.greekphraseapp`, versionCode 7.
 
-## Установка 0.4.0
+## Установка 0.4.1
 
-[Скачать APK 0.4.0 с GitHub](https://github.com/zakgovin/GreekPhraseApp/raw/refs/tags/v0.4.0/downloads/frasi-0.4.0-android.apk).
+[Скачать APK 0.4.1 с GitHub](https://github.com/zakgovin/GreekPhraseApp/raw/refs/tags/v0.4.1/downloads/frasi-0.4.1-android.apk).
+
+Поверх 0.4.0 устанавливается обычным обновлением: удалять приложение и повторно импортировать JSON не нужно. Ключ, package ID и формат прогресса сохранены. Исправлены все счётчики: 157 фраз всего, 80 личных. Версия приложения видна в настройках.
 
 При переходе с 0.3.1 требуется удалить старое приложение: прежний ключ не сохранился после пересоздания облачной среды. Захар разрешил эту разовую переустановку. Новая версия сохраняет прежнее имя и package ID, но имеет другой сертификат.
 
 1. При необходимости сохраните прогресс: настройки старого приложения → экспорт JSON.
-2. Удалите старую Φράση и установите скачанный APK 0.4.0.
+2. Удалите старую Φράση и установите скачанный APK 0.4.1.
 3. Если экспортировали JSON, импортируйте его в настройках новой версии.
 
 Удаление очищает приватные данные, поэтому экспорт нужен до него. Исходные ID карточек и формат JSON сохранены. Старые аудиозаписи в JSON не входят.
@@ -56,7 +58,7 @@ python3 scripts/setup-android.py
 npm run android:key:check
 # При отсутствии ключа — восстановить его по SIGNING.md.
 npm run android:build
-adb install -r artifacts/frasi-0.4.0-android.apk
+adb install -r artifacts/frasi-0.4.1-android.apk
 ```
 
 Инструменты по умолчанию — `/workspace/android-tools`. Другой путь: `FRASI_ANDROID_TOOLS`; готовые SDK/JDK: `JAVA_HOME` и `ANDROID_HOME`. В managed cloud используются настроенный прокси и системное доверие Java, TLS-проверки включены. При запрете локальных механизмов Gradle внутри песочницы нужен обычный запуск Gradle во внешнем исполнительном окружении.

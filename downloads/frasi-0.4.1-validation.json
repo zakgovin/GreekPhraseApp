@@ -1,0 +1,58 @@
+{
+  "version": "0.4.1",
+  "versionCode": 7,
+  "releaseTag": "v0.4.1",
+  "validatedDate": "2026-11-08",
+  "timezone": "Europe/Moscow",
+  "applicationId": "com.zakgovin.greekphraseapp",
+  "bytes": 9383083,
+  "sha256": "24b5cbb037b04ecd65529f7d83affbdd0e48f2b8f616d74a48ec986767990fcb",
+  "webAssetsVerifiedInsideApk": 27,
+  "imagesVerifiedInsideApk": 8,
+  "questionsInApk": 38,
+  "newCardsInApk": 35,
+  "lint": {
+    "Error": 0,
+    "Warning": 16
+  },
+  "privateSigningFilesInApk": false,
+  "unitTests": {
+    "passed": 41,
+    "total": 41
+  },
+  "browserTests": {
+    "passed": 36,
+    "total": 36,
+    "seconds": 43.0,
+    "dimensions": ["1440x1000", "390x844"],
+    "additionalLayout": "360x800",
+    "touchEvents": "Chromium CDP touchStart/touchMove/touchEnd",
+    "keyboardWordReordering": true
+  },
+  "signatureMatchesPrevious": true,
+  "requiresReinstallFrom": ["0.3.1", "0.3.0", "0.2.1"],
+  "certificateSha256": "5252f3b6ec448ce73afde179c6d3000973318eee5a1abfe7b7b04b6abb7c451d",
+  "pinnedCertificateMatches": true,
+  "signingRecoveryIntegrationPassed": true,
+  "missingOrChangedKeyBlocksBuild": true,
+  "encryptedSigningBackupTracked": true,
+  "privateRecoveryBackupPublished": false,
+  "nativeRuntimeVerified": false,
+  "physicalSpeechRecognitionVerified": false,
+  "cards": 157,
+  "personalCards": 80,
+  "officialSources": 43,
+  "userQuestionSources": 1,
+  "examinerQuestions": 38,
+  "addedCards": 35,
+  "media": {
+    "version": "0.4.1",
+    "sha256": "24b5cbb037b04ecd65529f7d83affbdd0e48f2b8f616d74a48ec986767990fcb",
+    "pdfFiles": 0,
+    "audioClips": 2,
+    "publicBytes": 4998711,
+    "clipHashesVerifiedInsideApk": true
+  },
+  "legacyImportKeepsAll157Cards": true,
+  "phraseCountersDerivedFromContent": true
+}

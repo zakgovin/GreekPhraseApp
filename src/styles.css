@@ -4202,7 +4202,8 @@ input::placeholder {
   }
 }
 @media (max-width: 700px) {
-  .question-page-heading > .pill {
+  .question-page-heading > .pill,
+  .library-page-heading > .pill {
     display: inline-flex;
   }
 }

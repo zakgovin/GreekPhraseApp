@@ -493,6 +493,73 @@ test("backup export restores settings and invalid import leaves them intact", as
   ).toHaveValue("0.65");
 });
 
+test("importing an old backup keeps all 157 phrases, current counts and personal answers", async ({
+  page,
+}, testInfo) => {
+  await startLesson(page);
+  await assemble(page);
+  await page
+    .getByRole("button", { name: /^(Продолжить|Завершить занятие)$/ })
+    .click();
+  const legacy = await page.evaluate(() => {
+    const progress = JSON.parse(localStorage.getItem("frasi.progress.v1")!);
+    progress.session = null;
+    progress.savedSession = null;
+    return { app: "frasi", version: 1, recordingsIncluded: false, progress };
+  });
+  expect(legacy.progress.reviews).toHaveLength(1);
+  expect(
+    Object.keys(legacy.progress.memory).every(
+      (key) => Number(key.slice(3).split(":")[0]) <= 122,
+    ),
+  ).toBe(true);
+  await page.goto("/#settings");
+  await expect(page.getByText("Φράση · версия 0.4.1")).toBeVisible();
+  await page.getByLabel("Скорость озвучки", { exact: true }).selectOption("1");
+  await page.getByLabel("Файл резервной копии", { exact: true }).setInputFiles({
+    name: "frasi-progress-before-new-questions.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(legacy)),
+  });
+  await page
+    .getByRole("button", { name: "Восстановить этот файл", exact: true })
+    .click();
+  await expect(
+    page.getByLabel("Скорость озвучки", { exact: true }),
+  ).toHaveValue("0.85");
+  await page.goto("/#phrases");
+  await expect(page.locator(".phrase-tile")).toHaveCount(157);
+  await expect(page.getByText(/^Всего фраз: 157\./)).toBeVisible();
+  await expect(page.getByText("Фраз о вас: 80", { exact: true })).toBeVisible();
+  await expect(page.locator('.sidebar a[href="#phrases"] small')).toHaveText(
+    "157",
+  );
+  await expect(
+    page.locator(".phrase-tile h3").filter({
+      hasText: "Χρησιμοποιώ τεχνητή νοημοσύνη.",
+    }),
+  ).toHaveCount(1);
+  await page.screenshot({
+    path: testInfo.outputPath("correct-course-count.png"),
+  });
+  await page.getByLabel("Тип фразы", { exact: true }).selectOption("personal");
+  await expect(page.locator(".phrase-tile")).toHaveCount(80);
+  await page.goto("/#progress");
+  await expect(page.locator(".big-stat").first().locator("small")).toHaveText(
+    "/ 157",
+  );
+  await page.reload();
+  const restored = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("frasi.progress.v1")!),
+  );
+  expect(restored.reviews).toEqual(legacy.progress.reviews);
+  expect(restored.memory).toEqual(legacy.progress.memory);
+  await page.goto("/#phrases");
+  await expect(page.locator(".phrase-tile")).toHaveCount(157);
+  await page.goto("/#questions");
+  await expect(page.locator(".exam-question")).toHaveCount(38);
+});
+
 test("ASR bridge errors do not grade the learner and recognized words are actually checked", async ({
   page,
 }) => {
