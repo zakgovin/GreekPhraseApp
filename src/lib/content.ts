@@ -1,6 +1,6 @@
 import raw from "../data/phrases.json";
 
-export type Skill = "understanding" | "speaking" | "writing";
+export type Skill = "understanding" | "speaking" | "writing" | "phrase";
 export type Kind =
   | "personal"
   | "roleplay"
@@ -39,6 +39,7 @@ export const kindLabels: Record<Kind, string> = {
   image_description: "Картинка",
 };
 export const skillLabels: Record<Skill, string> = {
+  phrase: "Фразы",
   understanding: "Понимание",
   speaking: "Речь",
   writing: "Письмо",

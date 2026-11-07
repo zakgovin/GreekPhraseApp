@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   phrases,
   sources,
-  defaultSkill,
+  type Skill,
   family,
   normalize,
   wordCount,
@@ -29,7 +29,7 @@ import { listeningTasks } from "../data/curriculum";
 const now = new Date("2026-11-03T10:00:00Z");
 function attempt(
   id: string,
-  skill: "speaking" | "writing" | "understanding" = "speaking",
+  skill: Skill = "speaking",
   grade = 3,
   p = emptyProgress(),
   at = now,
@@ -153,15 +153,15 @@ describe("FSRS history and truthful progress", () => {
   });
 });
 describe("Daily queue and recovery", () => {
-  it("gives three new families and respects the daily limit on restart", () => {
+  it("starts with five new families and permits another adaptive round", () => {
     let p = emptyProgress();
     p.session = createSession(p, now);
     const recalls = p.session.items.filter((i) => i.phase === "recall");
-    expect(recalls).toHaveLength(3);
-    expect(new Set(recalls.map((i) => family(i.cardId))).size).toBe(3);
+    expect(recalls).toHaveLength(5);
+    expect(new Set(recalls.map((i) => family(i.cardId))).size).toBe(5);
     p = complete(p);
-    expect(dailyCandidates(p, now).remaining).toBe(0);
-    expect(createSession(p, now).items).toHaveLength(0);
+    expect(dailyCandidates(p, now).remaining).toBeGreaterThan(0);
+    expect(createSession(p, now).items.some((item) => item.isNew)).toBe(true);
   });
   it("buries close new phrases from a family already reviewed today", () => {
     const p = attempt("a2-003");
@@ -177,7 +177,7 @@ describe("Daily queue and recovery", () => {
           all.findIndex((p1) => family(p1.id) === family(c.id)) === i,
       )
       .slice(0, 10);
-    for (const c of selected) p = attempt(c.id, defaultSkill(c), 1, p);
+    for (const c of selected) p = attempt(c.id, "phrase", 1, p);
     p.settings.minutes = 5;
     const tomorrow = new Date(now.getTime() + 86400000);
     expect(dueItems(p, tomorrow)).toHaveLength(10);

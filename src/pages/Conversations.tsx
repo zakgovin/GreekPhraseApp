@@ -4,15 +4,15 @@ import {
   ArrowRight,
   Check,
   CheckCheck,
-  Eye,
-  HelpCircle,
   MessageCircle,
   RotateCcw,
 } from "lucide-react";
 import { conversations, type Conversation } from "../data/curriculum";
 import { useApp } from "../state";
-import { newDraft } from "../lib/progress";
-import { Pill, Recorder, SourceButton, Speak } from "../components/common";
+import { newDraft, type Draft } from "../lib/progress";
+import { matchesPhrase } from "../lib/lesson";
+import { Answer } from "../components/Answer";
+import { Pill, SourceButton, Speak } from "../components/common";
 
 export function Conversations() {
   const { progress: p } = useApp();
@@ -49,9 +49,7 @@ export function Conversations() {
           <h1>
             Давайте поговорим<span className="heading-dot">.</span>
           </h1>
-          <p>
-            Знакомые темы, новые вопросы. Сначала ваш ответ — затем образец.
-          </p>
+          <p>Потренируй короткие ответы: собери фразу, а мы проверим её.</p>
         </div>
         <Pill tone="outline">{conversations.length} бесед и ситуаций</Pill>
       </div>
@@ -106,7 +104,7 @@ export function Conversations() {
                 <h2>{c.title}</h2>
                 <p>{c.subtitle}</p>
                 <footer>
-                  <span>{c.turns.length} вопроса · свой ответ</span>
+                  <span>{c.turns.length} вопроса · короткие ответы</span>
                   <ArrowRight size={18} />
                 </footer>
               </div>
@@ -124,62 +122,77 @@ function ConversationPractice({
   task: Conversation;
   onBack: () => void;
 }) {
-  const { progress: p, update, source } = useApp(),
-    d = p.drafts[task.id] ?? newDraft(),
-    [answered, setAnswered] = useState(false);
-  const count = p.practice.filter((r) => r.taskId === task.id).length,
-    turn = task.turns[d.turn],
-    complete = d.turn >= task.turns.length;
-  function patch(value: Partial<typeof d>) {
+  const { progress: p, update, source } = useApp();
+  const d = p.drafts[task.id] ?? newDraft(),
+    turn = task.turns[d.turn];
+  function patch(next: Draft) {
     update((prev) => ({
       ...prev,
-      drafts: {
-        ...prev.drafts,
-        [task.id]: { ...(prev.drafts[task.id] ?? newDraft()), ...value },
-      },
+      drafts: { ...prev.drafts, [task.id]: next },
     }));
   }
-  function rate(value: number) {
-    const now = new Date().toISOString(),
-      expected = d.turn;
+  function answer(value: string, helped = false) {
+    const correct = !helped && matchesPhrase(turn.answer, value);
     update((prev) => {
       const current = prev.drafts[task.id] ?? newDraft();
-      if (current.turn !== expected || !current.shown) return prev;
-      const ratings = [...current.ratings, value],
-        next = {
-          ...current,
-          turn: current.turn + 1,
-          shown: false,
-          text: "",
-          ratings,
-          answers: {
-            ...current.answers,
-            ["turn-" + current.turn]: current.text,
-          },
-        };
-      const finished = next.turn >= task.turns.length;
+      if (current.turn !== d.turn || current.shown) return prev;
       return {
         ...prev,
-        drafts: { ...prev.drafts, [task.id]: next },
+        drafts: {
+          ...prev.drafts,
+          [task.id]: {
+            ...current,
+            shown: true,
+            helped: current.helped || helped,
+            text: value,
+            answers: {
+              ...current.answers,
+              result: correct ? "yes" : "no",
+              turnHelp: helped ? "yes" : "no",
+            },
+          },
+        },
+      };
+    });
+  }
+  function next() {
+    update((prev) => {
+      const current = prev.drafts[task.id] ?? newDraft();
+      if (current.turn !== d.turn || !current.shown) return prev;
+      const ratings = [
+        ...current.ratings,
+        current.answers.result === "yes" ? 3 : 1,
+      ];
+      const value = {
+        ...newDraft(),
+        turn: current.turn + 1,
+        helped: current.helped,
+        ratings,
+        answers: { legacy: current.answers.legacy ?? "no" },
+      };
+      const finished = value.turn >= task.turns.length;
+      return {
+        ...prev,
+        drafts: { ...prev.drafts, [task.id]: value },
         practice: finished
           ? [
               ...prev.practice,
               {
                 id: crypto.randomUUID(),
                 taskId: task.id,
-                skill: "speaking",
-                at: now,
-                assisted: current.helped,
-                correct: ratings.filter((r) => r > 1).length,
+                skill: "phrase",
+                at: new Date().toISOString(),
+                assisted: true,
+                checked: current.answers.legacy !== "yes",
+                correct: ratings.filter((rating) => rating > 1).length,
                 total: task.turns.length,
               },
             ]
           : prev.practice,
       };
     });
-    setAnswered(false);
   }
-  if (complete)
+  if (!turn)
     return (
       <div className="session-summary">
         <div className="summary-icon">
@@ -188,39 +201,33 @@ function ConversationPractice({
         <Pill>Практика сохранена</Pill>
         <h1>Разговор состоялся.</h1>
         <p>
-          Вы потренировали тему «{task.title}». В следующий раз вопросы могут
-          звучать немного иначе.
+          Ты потренировал ответы по теме «{task.title}». Вопросы можно послушать
+          ещё раз.
         </p>
         <div className="summary-stats">
           <div>
-            <strong>{d.ratings.filter((r) => r > 1).length}</strong>
-            <span>ответов удалось</span>
-          </div>
-          <div>
-            <strong>{task.turns.length}</strong>
-            <span>вопросов всего</span>
+            <strong>
+              {d.ratings.filter((rating) => rating > 1).length} из{" "}
+              {task.turns.length}
+            </strong>
+            <span>
+              {d.answers.legacy === "yes"
+                ? "включая раннюю самооценку"
+                : "ответов по образцу"}
+            </span>
           </div>
         </div>
-        {d.helped && (
-          <p className="inline-notice">
-            В этой беседе использовалась помощь. Позже попробуйте без неё.
-          </p>
-        )}
         <div className="dialog-actions">
           <button
             className="button button-primary"
             data-native-back
             onClick={onBack}
           >
-            К другим темам
-            <ArrowRight size={17} />
+            К другим темам <ArrowRight size={17} />
           </button>
           <button
             className="button button-outline"
-            onClick={() => {
-              patch(newDraft());
-              setAnswered(false);
-            }}
+            onClick={() => patch(newDraft())}
           >
             <RotateCcw size={16} />
             Ещё раз
@@ -228,148 +235,72 @@ function ConversationPractice({
         </div>
       </div>
     );
-  const question = count % 2 && turn.alternative ? turn.alternative : turn.el;
   return (
     <>
       <button className="back-link" data-native-back onClick={onBack}>
         <ArrowLeft size={17} />
-        Все разговорные темы
+        Все темы
       </button>
       <div className="practice-heading">
         <div>
           <p className="eyebrow">
-            {task.kind === "personal" ? "О МОЕЙ ЖИЗНИ" : "УЧЕБНАЯ РОЛЕВАЯ ИГРА"}
+            {task.kind === "role" ? "УЧЕБНАЯ РОЛЬ" : "О ТВОЕЙ ЖИЗНИ"}
           </p>
           <h1>{task.title}</h1>
         </div>
         <Pill tone="outline">
-          Вопрос {d.turn + 1} из {task.turns.length}
+          {d.turn + 1} из {task.turns.length}
         </Pill>
       </div>
-      <div className="practice-layout">
-        <aside className="practice-guide">
-          <MessageCircle size={28} />
-          <h3>{task.kind === "personal" ? "Будьте собой" : "Ваша роль"}</h3>
-          <p>{task.context}</p>
-          <ol>
-            {task.turns.map((t, i) => (
-              <li
-                key={i}
-                className={i === d.turn ? "current" : i < d.turn ? "done" : ""}
-              >
-                <span>{i < d.turn ? <Check size={13} /> : i + 1}</span>
-                {t.ru}
-              </li>
-            ))}
-          </ol>
-          <SourceButton ids={task.sources} onClick={source} />
-        </aside>
-        <section className="panel conversation-stage" key={d.turn}>
-          <span className="eyebrow">ВАС СПРАШИВАЮТ</span>
-          <div className="question-bubble">
-            <p lang="el">{question}</p>
-            <Speak text={question} compact />
-          </div>
-          <button
-            className="text-link help-link"
-            onClick={() =>
-              patch({
-                helped: true,
-                answers: { ...d.answers, translation: question },
-              })
-            }
-          >
-            <HelpCircle size={15} />
-            Показать перевод вопроса
-          </button>
-          {d.answers.translation === question && (
-            <p className="translation">{turn.ru}</p>
-          )}
-          <p className="muted">
-            Ответьте вслух или напишите. Точная формулировка образца не
-            обязательна.
-          </p>
-          <Recorder
-            key={task.id + ":" + d.turn}
-            recordingKey={task.id + ":" + d.turn}
-            onRecorded={() => setAnswered(true)}
-          />
-          <label className="input-label" htmlFor="conversation-answer">
-            Или ответьте текстом
-          </label>
-          <textarea
-            id="conversation-answer"
-            lang="el"
-            rows={3}
-            value={d.text}
-            onChange={(e) => patch({ text: e.target.value })}
-            placeholder="Ваш ответ на греческом…"
-          />
-          {!d.shown ? (
-            <div className="recall-actions">
-              <button
-                className="button button-primary"
-                disabled={!answered && !d.text.trim()}
-                onClick={() => patch({ shown: true })}
-              >
-                <Eye size={17} />
-                Сравнить с образцом
-              </button>
-              {!answered && !d.text.trim() && (
-                <button
-                  className="button button-quiet"
-                  onClick={() => setAnswered(true)}
-                >
-                  Я ответил вслух
-                </button>
-              )}
-              <button
-                className="text-link"
-                onClick={() => patch({ helped: true, shown: true })}
-              >
-                Нужна помощь
-              </button>
-            </div>
-          ) : (
-            <div className="answer-panel">
-              <div>
-                <span className="eyebrow">ОДИН ИЗ ПОДХОДЯЩИХ ОТВЕТОВ</span>
-                <Speak text={turn.answer} compact />
-              </div>
-              <p lang="el" className="answer-greek">
-                {turn.answer}
-              </p>
-              <ul className="criteria">
-                {turn.points.map((point) => (
-                  <li key={point}>
-                    <Check size={15} />
-                    {point}
-                  </li>
-                ))}
-              </ul>
-              <p className="microcopy">
-                Оцените смысл своего ответа. Приложение не выставляет
-                автоматический балл за произношение.
-              </p>
-              <div className="dialog-actions">
-                <button
-                  className="button button-outline"
-                  onClick={() => rate(1)}
-                >
-                  Нужно потренировать
-                </button>
-                <button
-                  className="button button-primary"
-                  onClick={() => rate(3)}
-                >
-                  Мне удалось
-                  <ArrowRight size={16} />
-                </button>
-              </div>
-            </div>
-          )}
-        </section>
+      <div className="practice-guide">
+        <p>{task.context}</p>
+        <SourceButton ids={task.sources} onClick={source} />
       </div>
+      <section className="panel conversation-practice">
+        <p className="eyebrow">ВОПРОС СОБЕСЕДНИКА</p>
+        <h2 className="greek-display" lang="el">
+          {turn.el}
+        </h2>
+        <Speak text={turn.el} label="Послушать вопрос" />
+        <p>{turn.ru}</p>
+        {!d.shown ? (
+          <Answer
+            key={task.id + ":" + d.turn}
+            expected={turn.answer}
+            kind="assemble"
+            seed={task.id + ":" + d.turn}
+            draft={d}
+            onDraft={patch}
+            onSubmit={(value) => answer(value)}
+            onHelp={() => answer("", true)}
+          />
+        ) : (
+          <div
+            className={
+              "automatic-feedback " +
+              (d.answers.result === "yes" ? "correct" : "review")
+            }
+            role="status"
+          >
+            <strong>
+              {d.answers.result === "yes"
+                ? "Ответ получился!"
+                : "Посмотри на пример ответа"}
+            </strong>
+            <p className="answer-greek" lang="el">
+              {turn.answer}
+            </p>
+            <Speak text={turn.answer} />
+            <p>
+              Здесь тренируем ответ по образцу. Свободный разговор может звучать
+              иначе.
+            </p>
+            <button className="button button-primary" onClick={next}>
+              Продолжить <ArrowRight size={17} />
+            </button>
+          </div>
+        )}
+      </section>
     </>
   );
 }

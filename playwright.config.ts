@@ -2,8 +2,8 @@ import { defineConfig, devices } from "@playwright/test";
 import { existsSync } from "node:fs";
 export default defineConfig({
   testDir: "./tests",
-  fullyParallel: true,
-  workers: 2,
+  fullyParallel: false,
+  workers: 1,
   timeout: 30000,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
@@ -11,16 +11,11 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     timezoneId: "Europe/Moscow",
-    permissions: ["microphone"],
     launchOptions: {
       executablePath:
         process.env.CHROMIUM_PATH ||
         (existsSync("/usr/bin/chromium") ? "/usr/bin/chromium" : undefined),
-      args: [
-        "--no-sandbox",
-        "--use-fake-device-for-media-stream",
-        "--use-fake-ui-for-media-stream",
-      ],
+      args: ["--no-sandbox"],
     },
   },
   projects: [

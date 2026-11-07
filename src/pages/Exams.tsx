@@ -25,7 +25,9 @@ import { useApp } from "../state";
 import { newDraft } from "../lib/progress";
 import { phrases, wordCount, type Skill } from "../lib/content";
 import { checkListening } from "../lib/exercises";
-import { Pill, Recorder, SourceButton, Speak } from "../components/common";
+import { Answer } from "../components/Answer";
+import { matchesPhrase } from "../lib/lesson";
+import { Pill, SourceButton, Speak } from "../components/common";
 
 type Selection = { kind: "writing" | "image" | "listening"; id: string };
 export function Exams() {
@@ -454,14 +456,52 @@ function Picture({
   control: boolean;
   onBack: () => void;
 }) {
-  const { draft: d, patch, finish } = useExercise(task.id),
-    [answered, setAnswered] = useState(false),
-    [show, setShow] = useState(false);
+  const { progress: p, update } = useApp();
+  const d = p.drafts[task.id] ?? newDraft();
+  function patch(next: typeof d) {
+    update((prev) => ({
+      ...prev,
+      drafts: { ...prev.drafts, [task.id]: next },
+    }));
+  }
+  function check(value: string, helped = false) {
+    const correct = !helped && matchesPhrase(task.answer, value);
+    update((prev) => {
+      const current = prev.drafts[task.id] ?? newDraft();
+      if (current.shown) return prev;
+      return {
+        ...prev,
+        drafts: {
+          ...prev.drafts,
+          [task.id]: {
+            ...current,
+            shown: true,
+            text: value,
+            helped,
+            answers: { ...current.answers, result: correct ? "yes" : "no" },
+          },
+        },
+        practice: [
+          ...prev.practice,
+          {
+            id: crypto.randomUUID(),
+            taskId: task.id,
+            skill: "phrase",
+            at: new Date().toISOString(),
+            assisted: helped || !control,
+            checked: true,
+            correct: correct ? 1 : 0,
+            total: 1,
+          },
+        ],
+      };
+    });
+  }
   return (
     <>
       <Header
         title={task.title}
-        subtitle="Устная часть · описание картинки"
+        subtitle="Описание картинки · учебный пример"
         source={task.source}
         onBack={onBack}
       />
@@ -469,95 +509,56 @@ function Picture({
         <figure className="exam-photo">
           <img
             src={"/images/" + task.image + ".png"}
-            alt={"Исходная фотография к заданию «" + task.title + "»"}
+            alt={"Фотография к заданию «" + task.title + "»"}
           />
-          <figcaption>
-            Фотография из присланного экзаменационного материала
-          </figcaption>
+          <figcaption>Изображение из экзаменационного материала</figcaption>
         </figure>
         <section className="panel picture-answer">
-          <span className="eyebrow">РАССКАЖИТЕ, ЧТО ВЫ ВИДИТЕ</span>
-          {task.questions.map((q) => (
-            <div className="picture-question" key={q}>
-              <p lang="el">{q}</p>
-              <Speak text={q} compact />
+          <p className="eyebrow">СОБЕРИ ПРИМЕР ОПИСАНИЯ</p>
+          {task.questions.map((question) => (
+            <div className="picture-question" key={question}>
+              <p lang="el">{question}</p>
+              <Speak text={question} compact />
             </div>
           ))}
-          <Recorder
-            recordingKey={task.id}
-            onRecorded={() => setAnswered(true)}
-          />
-          <textarea
-            aria-label="Описание картинки"
-            lang="el"
-            rows={4}
-            value={d.text}
-            onChange={(e) => patch({ text: e.target.value, shown: false })}
-            placeholder="Или напишите описание…"
-          />
-          {!answered && !d.text.trim() && (
-            <button className="text-link" onClick={() => setAnswered(true)}>
-              Я описал картинку вслух
-            </button>
-          )}
-          <div className="checklist">
-            {task.points.map((point, i) => (
-              <label key={point}>
-                <input
-                  type="checkbox"
-                  checked={d.checks[i] ?? false}
-                  onChange={(e) => {
-                    const checks = [...d.checks];
-                    checks[i] = e.target.checked;
-                    patch({ checks });
-                  }}
-                />
-                <span>{point}</span>
-              </label>
-            ))}
-          </div>
-          <div className="dialog-actions">
-            <button
-              className="button button-primary"
-              disabled={d.shown || (!answered && !d.text.trim())}
-              onClick={() =>
-                finish(
-                  "speaking",
-                  d.checks.filter(Boolean).length,
-                  task.points.length,
-                )
+          {!d.shown ? (
+            <Answer
+              expected={task.answer}
+              kind={control ? "recall" : "assemble"}
+              seed={task.id}
+              draft={d}
+              onDraft={patch}
+              onSubmit={(value) => check(value)}
+              onHelp={() => check("", true)}
+            />
+          ) : (
+            <div
+              className={
+                "automatic-feedback " +
+                (d.answers.result === "yes" ? "correct" : "review")
               }
+              role="status"
             >
-              {d.shown ? "Попытка сохранена" : "Сохранить попытку"}
-              <Check size={17} />
-            </button>
-            {(!control || d.shown) && (
-              <button
-                className="button button-quiet"
-                onClick={() => {
-                  setShow(!show);
-                  if (!d.shown) patch({ helped: true });
-                }}
-              >
-                <Eye size={17} />
-                Образец
-              </button>
-            )}
-          </div>
-          {show && (
-            <div className="answer-panel">
-              <span className="eyebrow">ПРИМЕР ОПИСАНИЯ</span>
+              <strong>
+                {d.answers.result === "yes"
+                  ? "Описание получилось!"
+                  : "Разберём пример описания"}
+              </strong>
               <p className="answer-greek" lang="el">
                 {task.answer}
               </p>
               <Speak text={task.answer} />
+              <p>
+                Проверили формулировку из упражнения. Свободное описание на
+                экзамене может быть другим.
+              </p>
+              <button className="button button-primary" onClick={onBack}>
+                К другим картинкам <ArrowRight size={17} />
+              </button>
+              <button className="text-link" onClick={() => patch(newDraft())}>
+                Потренировать ещё раз
+              </button>
             </div>
-          )}
-          {d.shown && (
-            <p className="inline-notice" role="status">
-              Попытка сохранена по вашей самооценке. Это не автоматическая
-              оценка речи.{d.helped ? " Вы использовали помощь." : ""}
-            </p>
           )}
         </section>
       </div>

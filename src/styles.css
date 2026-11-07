@@ -3723,3 +3723,247 @@ input::placeholder {
     font-size: 11px;
   }
 }
+
+/* A lesson has one language task and one clear next action. */
+.checked-answer {
+  margin-top: 24px;
+}
+.exercise-instruction {
+  color: var(--text);
+  font-weight: 650;
+  margin: 0 0 16px;
+}
+.sentence-answer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 96px;
+  padding: 16px;
+  border: 1.5px solid #c5d3c8;
+  border-radius: 16px;
+  background: #f6f8f2;
+}
+.answer-placeholder {
+  color: #647369;
+  font-size: 15px;
+}
+.word-bank {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  padding: 22px 0 12px;
+}
+.word-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 46px;
+  padding: 10px 15px;
+  background: #fff;
+  color: #193b31;
+  border: 1px solid #c5d3c8;
+  border-bottom-width: 3px;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 18px;
+  cursor: pointer;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.word-chip:hover:not(:disabled),
+.word-chip:focus-visible {
+  background: #edf5df;
+  border-color: #80a16a;
+}
+.word-chip.selected {
+  background: #e7f1da;
+  border-color: #9eb98b;
+}
+.word-chip:disabled {
+  opacity: 0.22;
+  cursor: default;
+}
+.check-answer {
+  width: 100%;
+  margin: 18px 0 0;
+}
+.answer-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px 22px;
+  margin-top: 22px;
+}
+.answer-tools .text-link {
+  min-height: 40px;
+}
+.answer-tools .listening {
+  color: #9a3e30;
+  background: #fff1e9;
+}
+.answer-input-label {
+  display: block;
+}
+.answer-input-label > span {
+  display: block;
+  margin-bottom: 12px;
+  color: #526358;
+  font-size: 15px;
+}
+.answer-input-label textarea {
+  display: block;
+  width: 100%;
+  padding: 16px;
+  border: 1.5px solid #b8cbbd;
+  border-radius: 14px;
+  font-size: 23px;
+  line-height: 1.5;
+  background: #fff;
+  resize: vertical;
+}
+.cloze-sentence {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 32px;
+  line-height: 1.65;
+  color: #193b31;
+  overflow-wrap: anywhere;
+}
+.word-gap {
+  display: inline-block;
+  min-width: 76px;
+  text-align: center;
+  border-bottom: 3px solid #a7c17b;
+  padding: 0 12px;
+  margin: 0 5px;
+  color: #496b37;
+}
+.cloze-options .word-chip {
+  min-width: 95px;
+}
+.automatic-feedback {
+  margin-top: 25px;
+  padding: 25px;
+  border-radius: 18px;
+  border: 1px solid #c1d6b2;
+  background: #f0f6e8;
+}
+.automatic-feedback.review {
+  background: #fcf5e8;
+  border-color: #e6d6b4;
+}
+.feedback-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #284c2b;
+  font-size: 21px;
+}
+.automatic-feedback.review .feedback-title {
+  color: #775729;
+}
+.automatic-feedback .answer-greek {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 29px;
+  line-height: 1.5;
+  margin: 20px 0;
+}
+.automatic-feedback > p:not(.answer-greek) {
+  color: #4c5d4d;
+  font-size: 15px;
+  line-height: 1.65;
+}
+.automatic-feedback .button-primary {
+  margin-top: 12px;
+}
+.automatic-feedback .text-link {
+  display: flex;
+  margin-top: 20px;
+}
+.submitted-answer {
+  overflow-wrap: anywhere;
+}
+.practice-shortcuts {
+  margin-top: 35px;
+}
+.practice-shortcuts > div:last-child {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.practice-shortcuts .conversation-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 25px;
+  min-height: 126px;
+  width: 100%;
+}
+.practice-shortcuts .conversation-feature > span {
+  flex: 1;
+  text-align: left;
+}
+.practice-shortcuts .conversation-feature strong {
+  display: block;
+  font-size: 18px;
+  margin-bottom: 7px;
+}
+.practice-shortcuts .conversation-feature small {
+  display: block;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #526758;
+}
+.conversation-practice {
+  max-width: 850px;
+  margin: 24px auto;
+  padding: 30px;
+}
+.conversation-practice h2 {
+  font-size: 32px;
+  line-height: 1.5;
+}
+.voice-status {
+  font-size: 14px;
+  line-height: 1.65;
+  margin-top: 20px;
+  color: #53675a;
+}
+@media (max-width: 700px) {
+  .practice-shortcuts > div:last-child {
+    grid-template-columns: 1fr;
+  }
+  .word-chip {
+    font-size: 17px;
+    padding: 9px 12px;
+  }
+  .word-bank {
+    gap: 8px;
+  }
+  .sentence-answer {
+    padding: 12px;
+    gap: 6px;
+  }
+  .automatic-feedback {
+    padding: 18px;
+  }
+  .automatic-feedback .answer-greek {
+    font-size: 25px;
+  }
+  .automatic-feedback .button-primary {
+    width: 100%;
+  }
+  .cloze-sentence {
+    font-size: 27px;
+  }
+  .conversation-practice {
+    padding: 20px;
+  }
+  .practice-shortcuts .conversation-feature {
+    padding: 20px;
+  }
+}

@@ -1,71 +1,68 @@
 import {
   ArrowLeft,
   ArrowRight,
+  Check,
   CheckCheck,
-  Eye,
-  HelpCircle,
   Pause,
   Repeat2,
   Sparkles,
 } from "lucide-react";
 import { useApp } from "../state";
-import { phrases, phraseById, skillLabels } from "../lib/content";
+import { phraseById } from "../lib/content";
 import {
   advanceLearning,
+  continueLesson,
+  helpLesson,
   newDraft,
-  rateSession,
-  revealAnswer,
+  submitLessonAnswer,
+  type Draft,
 } from "../lib/progress";
-import {
-  PhraseContext,
-  Pill,
-  Recorder,
-  SourceButton,
-  Speak,
-} from "../components/common";
+import { PhraseContext, Pill, SourceButton, Speak } from "../components/common";
+import { Answer } from "../components/Answer";
 
 export function Study() {
-  const { progress: p, update, navigate, study, source } = useApp(),
-    s = p.session;
+  const { progress: p, update, navigate, study, source } = useApp();
+  const s = p.session;
   if (!s)
     return (
       <div className="empty-state">
-        <h1>Начнём с нескольких фраз</h1>
-        <p>Приложение подготовит посильную очередь.</p>
+        <h1>Потренируем греческий?</h1>
         <button className="button button-primary" onClick={() => study()}>
-          Подготовить занятие
+          Начать занятие
         </button>
       </div>
     );
   if (s.completedAt || s.index >= s.items.length) {
-    const reviews = p.reviews.filter((r) => r.id.startsWith(s.id + ":")),
-      correct = reviews.filter((r) => r.rating > 1 && !r.assisted).length;
+    const reviews = p.reviews.filter((r) => r.id.startsWith(s.id + ":"));
+    const first = reviews.filter((r) => !r.retry);
+    const correct = first.filter((r) => r.rating > 1 && !r.assisted).length;
     return (
       <div className="session-summary">
         <div className="summary-icon">
           <CheckCheck size={42} />
         </div>
-        <Pill>Маленький шаг сделан</Pill>
-        <h1>
-          {reviews.length ? "Отлично. Теперь — пауза." : "Всё в своём темпе."}
-        </h1>
+        <Pill>Занятие завершено</Pill>
+        <h1>Ещё немного греческого с тобой.</h1>
         <p>
-          {reviews.length
-            ? "Мы сохранили ваши ответы и назначили следующие повторения. Дайте фразам немного времени."
-            : "Сейчас нет упражнений, готовых к повторению, или дневной лимит новых уже выполнен. Можно попрактиковаться в разговоре."}
+          {first.length
+            ? "Ответы сохранены. Когда вернуться к фразам и сколько нового добавить, мы подберём сами."
+            : "Сейчас можно немного повторить знакомые фразы или перейти к практике."}
         </p>
-        {reviews.length > 0 && (
+        {!!first.length && (
           <div className="summary-stats">
             <div>
-              <strong>{reviews.length}</strong>
-              <span>проверок</span>
+              <strong>
+                {correct} из {first.length}
+              </strong>
+              <span>заданий с первого раза</span>
             </div>
             <div>
-              <strong>{correct}</strong>
-              <span>без подсказок</span>
-            </div>
-            <div>
-              <strong>{reviews.filter((r) => r.isNew).length}</strong>
+              <strong>
+                {
+                  new Set(first.filter((r) => r.isNew).map((r) => r.cardId))
+                    .size
+                }
+              </strong>
               <span>новых фраз</span>
             </div>
           </div>
@@ -73,30 +70,24 @@ export function Study() {
         <div className="summary-next">
           <Sparkles size={21} />
           <div>
-            <strong>Теперь используйте фразы</strong>
-            <p>Короткая беседа поможет перейти от карточек к общению.</p>
+            <strong>
+              {correct < first.length / 2
+                ? "В следующем занятии будет больше закрепления"
+                : "Следующее занятие подстроится под твои ответы"}
+            </strong>
+            <p>Можно продолжить небольшим блоком или отдохнуть.</p>
           </div>
         </div>
         <div className="dialog-actions">
-          <button
-            className="button button-primary"
-            onClick={() => navigate("conversation")}
-          >
-            Попробовать разговор
-            <ArrowRight size={18} />
+          <button className="button button-primary" onClick={() => study()}>
+            Ещё немного <ArrowRight size={18} />
           </button>
-          {p.savedSession && !p.savedSession.completedAt ? (
-            <button className="button button-outline" onClick={() => study()}>
-              Вернуться к дневному плану
-            </button>
-          ) : (
-            <button
-              className="button button-outline"
-              onClick={() => navigate("today")}
-            >
-              На сегодня всё
-            </button>
-          )}
+          <button
+            className="button button-outline"
+            onClick={() => navigate("today")}
+          >
+            На сегодня достаточно
+          </button>
         </div>
       </div>
     );
@@ -104,25 +95,19 @@ export function Study() {
   const item = s.items[s.index],
     card = phraseById[item.cardId],
     learn = item.phase === "learn";
-  const draftKey = "study:" + s.id + ":" + s.index,
-    draft = p.drafts[draftKey] ?? newDraft();
-  const count = s.items.filter((i) => i.phase === "recall").length,
-    current = s.items
-      .slice(0, s.index)
-      .filter((i) => i.phase === "recall").length;
-  function text(value: string) {
+  const draftKey = "study:" + s.id + ":" + s.index;
+  const draft = p.drafts[draftKey] ?? newDraft();
+  const feedback = s.feedback;
+  function patch(next: Draft) {
     update((prev) => ({
       ...prev,
-      drafts: {
-        ...prev.drafts,
-        [draftKey]: { ...(prev.drafts[draftKey] ?? newDraft()), text: value },
-      },
+      drafts: { ...prev.drafts, [draftKey]: next },
     }));
   }
-  function rate(grade: number) {
-    const now = new Date();
-    update((prev) => rateSession(prev, s!.id, s!.index, grade, now));
-  }
+  const remaining = s.items
+    .slice(s.index)
+    .filter((entry) => entry.phase === "recall").length;
+  const total = s.items.filter((entry) => entry.phase === "recall").length;
   return (
     <>
       <div className="study-top">
@@ -136,41 +121,45 @@ export function Study() {
         </button>
         <div>
           <span>
-            {skillLabels[item.skill]} · {learn ? "знакомство" : "припоминание"}
+            {learn
+              ? "Знакомимся с фразой"
+              : item.retry
+                ? "Закрепим ещё раз"
+                : "Тренируем фразу"}
           </span>
           <button
             className="button button-quiet"
             onClick={() => navigate("today")}
           >
             <Pause size={16} />
-            Пауза
+            Перерыв
           </button>
         </div>
       </div>
       <div className="study-progress">
         <div className="progress-track">
-          <i style={{ width: (current / Math.max(1, count)) * 100 + "%" }} />
+          <i
+            style={{
+              width: ((total - remaining) / Math.max(1, total)) * 100 + "%",
+            }}
+          />
         </div>
-        <span>
-          {current} из {count} проверено
-        </span>
+        <span>Осталось {remaining}</span>
       </div>
       <section className="study-card" key={s.id + ":" + s.index}>
         <div className="study-card-top">
           <Pill tone={learn ? "sand" : "green"}>
             {learn
               ? "Новая фраза"
-              : item.isNew
-                ? "Первая попытка"
-                : "Повторение"}
+              : item.retry
+                ? "Ещё одна попытка"
+                : "Попробуй сам"}
           </Pill>
           <span>{card.topic}</span>
         </div>
         {learn ? (
           <>
-            <p className="eyebrow study-instruction">
-              ПРОЧИТАЙТЕ, ПОСЛУШАЙТЕ И ПОВТОРИТЕ
-            </p>
+            <p className="eyebrow study-instruction">ПОСЛУШАЙ И ПОВТОРИ</p>
             <h1 lang="el" className="greek-display">
               {card.el}
             </h1>
@@ -179,10 +168,7 @@ export function Study() {
             <PhraseContext phrase={card} />
             <div className="learning-note">
               <Sparkles size={18} />
-              <span>
-                Скоро попробуем вспомнить без образца. Знакомство не считается
-                проверкой памяти.
-              </span>
+              <span>Скоро потренируем эту фразу в коротком задании.</span>
             </div>
             <button
               className="button button-primary button-large"
@@ -190,131 +176,96 @@ export function Study() {
                 update((prev) => advanceLearning(prev, s.id, s.index))
               }
             >
-              Понятно, продолжить
-              <ArrowRight size={18} />
+              Дальше <ArrowRight size={18} />
             </button>
           </>
         ) : (
           <>
-            <p className="eyebrow study-instruction">
-              {item.skill === "understanding"
-                ? "КАК ВЫ ПОНИМАЕТЕ ЭТУ ФРАЗУ?"
-                : item.skill === "writing"
-                  ? "НАПИШИТЕ ПО-ГРЕЧЕСКИ"
-                  : "СКАЖИТЕ ПО-ГРЕЧЕСКИ СВОИМИ СЛОВАМИ"}
-            </p>
-            <h1
-              className={
-                item.skill === "understanding"
-                  ? "greek-display"
-                  : "recall-prompt"
-              }
-              lang={item.skill === "understanding" ? "el" : "ru"}
-            >
-              {item.skill === "understanding" ? card.el : card.ru}
-            </h1>
-            {item.skill === "understanding" && <Speak text={card.el} />}
+            <h1 className="recall-prompt">{card.ru}</h1>
             <PhraseContext phrase={card} />
-            {!s.revealed ? (
-              <>
-                <p className="muted">
-                  {item.skill === "understanding"
-                    ? "Сначала сформулируйте смысл, затем откройте перевод."
-                    : "Подойдёт и другой правильный вариант с тем же смыслом."}
-                </p>
-                {item.skill === "writing" ? (
-                  <textarea
-                    aria-label="Ваш письменный ответ"
-                    lang="el"
-                    rows={4}
-                    value={draft.text}
-                    onChange={(e) => text(e.target.value)}
-                    placeholder="Напишите ответ на греческом…"
-                  />
-                ) : item.skill === "speaking" ? (
-                  <Recorder recordingKey={draftKey} />
-                ) : null}
-                <div className="recall-actions">
-                  <button
-                    className="button button-primary"
-                    disabled={item.skill === "writing" && !draft.text.trim()}
-                    onClick={() => update((prev) => revealAnswer(prev))}
-                  >
-                    <Eye size={18} />
-                    {item.skill === "understanding"
-                      ? "Я ответил — показать перевод"
-                      : "Я ответил — сравнить"}
-                  </button>
-                  <button
-                    className="button button-quiet"
-                    onClick={() => update((prev) => revealAnswer(prev, true))}
-                  >
-                    <HelpCircle size={17} />
-                    Не помню, нужна помощь
-                  </button>
-                </div>
-              </>
+            {!feedback ? (
+              <Answer
+                expected={card.el}
+                kind={item.exercise ?? "assemble"}
+                seed={s.id + ":" + s.index}
+                draft={draft}
+                onDraft={patch}
+                onSubmit={(answer, method) =>
+                  update((prev) => submitLessonAnswer(prev, answer, method))
+                }
+                onHelp={() => update((prev) => helpLesson(prev))}
+                onRecognitionFailure={() =>
+                  update((prev) =>
+                    prev.session && !prev.session.feedback
+                      ? {
+                          ...prev,
+                          session: {
+                            ...prev.session,
+                            stepStartedAt: new Date().toISOString(),
+                            stepElapsedMs: 0,
+                          },
+                        }
+                      : prev,
+                  )
+                }
+              />
             ) : (
-              <div className="answer-panel">
-                <div>
-                  <span className="eyebrow">ОБРАЗЕЦ ОТВЕТА</span>
-                  <Speak text={card.el} compact />
+              <div
+                className={
+                  "automatic-feedback " +
+                  (feedback.correct && !s.assisted ? "correct" : "review")
+                }
+                role="status"
+              >
+                <div className="feedback-title">
+                  {feedback.correct && !s.assisted ? (
+                    <Check size={21} />
+                  ) : (
+                    <Repeat2 size={21} />
+                  )}
+                  <strong>
+                    {s.assisted
+                      ? "Запомним эту фразу"
+                      : feedback.correct
+                        ? "Верно!"
+                        : "Давай закрепим эту формулировку"}
+                  </strong>
                 </div>
-                <p lang="el" className="answer-greek">
+                {feedback.answer && !feedback.correct && (
+                  <p className="submitted-answer">
+                    Твой ответ: <span lang="el">{feedback.answer}</span>
+                  </p>
+                )}
+                <p className="answer-greek" lang="el">
                   {card.el}
                 </p>
-                <p>{card.ru}</p>
-                {draft.text && (
-                  <div className="your-answer">
-                    <span>Ваш ответ</span>
-                    <p lang="el">{draft.text}</p>
-                  </div>
-                )}
-                <p className="microcopy">
+                <Speak text={card.el} />
+                <p>
                   {s.assisted
-                    ? "Вы открыли подсказку. Сохраним это как попытку с помощью и повторим позже."
-                    : "Сравните смысл. Другой правильный вариант тоже подходит."}
+                    ? "Посмотри на образец и повтори. Мы вернёмся к фразе позже."
+                    : feedback.correct
+                      ? item.exercise !== "recall"
+                        ? "Фраза получилась. Позже попробуем вспомнить её с меньшей опорой."
+                        : "Ответ совпадает с изученной фразой. Следующее повторение назначено автоматически."
+                      : "В этом упражнении тренируем фразу из урока. Посмотри на порядок слов и повтори её."}
                 </p>
-                <div className="rating-label">Как удалось вспомнить?</div>
-                <div className="rating-buttons">
-                  {[
-                    {
-                      n: 1,
-                      title: s.assisted ? "Повторим позже" : "Не вспомнил",
-                      sub: "вернёмся к фразе",
-                    },
-                    { n: 2, title: "С трудом", sub: "сам, но с усилием" },
-                    { n: 3, title: "Вспомнил", sub: "самостоятельно" },
-                    { n: 4, title: "Легко", sub: "быстро и уверенно" },
-                  ].map((g) => (
-                    <button
-                      key={g.n}
-                      className={"rating rating-" + g.n}
-                      disabled={s.assisted && g.n !== 1}
-                      onClick={() => rate(g.n)}
-                    >
-                      <strong>{g.title}</strong>
-                      <span>{g.sub}</span>
-                    </button>
-                  ))}
-                </div>
+                <button
+                  className="button button-primary button-large"
+                  onClick={() => update((prev) => continueLesson(prev))}
+                >
+                  Продолжить <ArrowRight size={18} />
+                </button>
               </div>
             )}
           </>
         )}
         <div className="study-card-footer">
-          {(learn || s.revealed) && (
+          {(learn || feedback) && (
             <SourceButton ids={card.sources} onClick={source} />
           )}
-          <span>
-            Фраза {phrases.findIndex((c) => c.id === card.id) + 1} из 122
-          </span>
+          <span>Сохраняем твой прогресс</span>
         </div>
       </section>
-      <p className="study-bottom">
-        <Repeat2 size={15} />
-        Спокойный темп и честная самооценка помогают подобрать нужный интервал.
-      </p>
     </>
   );
 }

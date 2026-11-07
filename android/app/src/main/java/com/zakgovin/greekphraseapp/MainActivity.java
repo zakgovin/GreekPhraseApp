@@ -15,6 +15,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(FrasiNativePlugin.class);
+        registerPlugin(FrasiSpeechPlugin.class);
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView())

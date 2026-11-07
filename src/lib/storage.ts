@@ -19,7 +19,11 @@ export async function prepareStorage() {
       try {
         const progress = parseProgress(content);
         if (progress.session && !progress.session.completedAt)
-          progress.session = { ...progress.session, lastResumedAt: null };
+          progress.session = {
+            ...progress.session,
+            lastResumedAt: null,
+            stepStartedAt: null,
+          };
         initial = { progress, warning: "" };
       } catch {
         await native.preserveRecovery({ content });

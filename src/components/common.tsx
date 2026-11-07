@@ -6,20 +6,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import {
-  Volume2,
-  VolumeX,
-  X,
-  Mic,
-  Square,
-  ExternalLink,
-  Info,
-  ArrowRight,
-  LoaderCircle,
-} from "lucide-react";
+import { Volume2, VolumeX, X, Info, ArrowRight } from "lucide-react";
 import { sources, type Phrase } from "../lib/content";
-import { getRecording, saveRecording } from "../lib/media";
-import { isAndroid, native, nativeFileUrl } from "../lib/platform";
+import { isAndroid, native } from "../lib/platform";
 
 interface Speech {
   available: boolean;
@@ -173,11 +162,11 @@ export function Speak({
       <button
         type="button"
         className={compact ? "icon-button speak" : "button button-quiet"}
-        disabled={!speech.available}
+        disabled={!speech.available && !isAndroid}
         aria-label={
           !speech.available
             ? isAndroid
-              ? "На устройстве нет греческого голоса"
+              ? "Установить греческую озвучку"
               : "В браузере нет греческого голоса"
             : playing
               ? "Остановить озвучку"
@@ -189,29 +178,26 @@ export function Speak({
               ? "Греческий голос Android, без интернета"
               : "Греческий голос браузера"
             : speech.reason ||
-              "В этом браузере нет греческого голоса. Текст и оригинальные записи доступны."
+              "В этом браузере нет греческого голоса. Текст и аудиофрагменты упражнений доступны."
         }
-        onClick={() => (playing ? speech.stop() : speech.speak(text))}
+        onClick={() =>
+          !speech.available && isAndroid
+            ? void native.openSpeechSettings().catch(() => {})
+            : playing
+              ? speech.stop()
+              : speech.speak(text)
+        }
       >
         {speech.available ? <Volume2 size={18} /> : <VolumeX size={18} />}{" "}
-        {!compact && (playing ? "Остановить" : label)}
+        {!compact &&
+          (!speech.available
+            ? isAndroid
+              ? "Установить озвучку"
+              : "Озвучка недоступна"
+            : playing
+              ? "Остановить"
+              : label)}
       </button>
-      {!speech.available && !compact && (
-        <small className="speech-unavailable">
-          {speech.reason ||
-            "В браузере нет греческого голоса. Оригинальное аудио доступно в разделе «Экзамен»."}
-          {isAndroid && (
-            <button
-              className="text-link"
-              onClick={() => {
-                void native.openSpeechSettings().catch(() => {});
-              }}
-            >
-              Настройки голоса Android <ExternalLink size={14} />
-            </button>
-          )}
-        </small>
-      )}
     </span>
   );
 }
@@ -365,249 +351,4 @@ export function PhraseContext({ phrase }: { phrase: Phrase }) {
   return phrase.context ? (
     <p className="context-note">{phrase.context}</p>
   ) : null;
-}
-
-export function Recorder({
-  recordingKey,
-  onRecorded,
-}: {
-  recordingKey: string;
-  onRecorded?: () => void;
-}) {
-  return isAndroid ? (
-    <AndroidRecorder
-      key={recordingKey}
-      recordingKey={recordingKey}
-      onRecorded={onRecorded}
-    />
-  ) : (
-    <BrowserRecorder recordingKey={recordingKey} onRecorded={onRecorded} />
-  );
-}
-function AndroidRecorder({
-  recordingKey,
-  onRecorded,
-}: {
-  recordingKey: string;
-  onRecorded?: () => void;
-}) {
-  const [recording, setRecording] = useState(false),
-    [busy, setBusy] = useState(false),
-    [url, setUrl] = useState(""),
-    [error, setError] = useState("");
-  const callback = useRef(onRecorded);
-  callback.current = onRecorded;
-  const mounted = useRef(true);
-  useEffect(() => {
-    mounted.current = true;
-    void native
-      .getRecording({ key: recordingKey })
-      .then((result) => {
-        if (mounted.current && result.exists && result.path)
-          setUrl(nativeFileUrl(result.path));
-      })
-      .catch(() => {
-        if (mounted.current) setError("Не удалось прочитать запись.");
-      });
-    const listener = native.addListener("recordingStopped", (result) => {
-      if (!mounted.current || result.key !== recordingKey) return;
-      setRecording(false);
-      if (result.exists && result.path) {
-        setUrl(nativeFileUrl(result.path) + "?t=" + Date.now());
-        callback.current?.();
-      } else
-        setError(
-          "Запись слишком короткая или не сохранилась. Попробуйте ещё раз.",
-        );
-    });
-    return () => {
-      mounted.current = false;
-      void listener.then((handle) => handle.remove());
-      void native.stopRecording({ key: recordingKey }).catch(() => {});
-    };
-  }, [recordingKey]);
-  async function toggle() {
-    setBusy(true);
-    setError("");
-    try {
-      if (recording) await native.stopRecording({ key: recordingKey });
-      else {
-        await native.startRecording({ key: recordingKey });
-        if (mounted.current) setRecording(true);
-        else await native.stopRecording({ key: recordingKey });
-      }
-    } catch {
-      if (mounted.current) {
-        setRecording(false);
-        setError(
-          "Микрофон недоступен. Разрешите запись звука в настройках приложения или ответьте текстом.",
-        );
-      }
-    } finally {
-      if (mounted.current) setBusy(false);
-    }
-  }
-  return (
-    <div className="recorder">
-      <div className="recorder-controls">
-        <button
-          className={
-            "button " + (recording ? "button-recording" : "button-outline")
-          }
-          disabled={busy}
-          onClick={() => void toggle()}
-        >
-          {busy ? (
-            <LoaderCircle size={17} className="spin" />
-          ) : recording ? (
-            <Square size={16} />
-          ) : (
-            <Mic size={17} />
-          )}
-          {recording
-            ? "Остановить запись"
-            : url
-              ? "Записать заново"
-              : "Записать ответ"}
-        </button>
-        <span className="microcopy">
-          {recording
-            ? "Идёт запись… До 3 минут"
-            : "Запись остаётся на устройстве"}
-        </span>
-      </div>
-      {url && <audio controls src={url} aria-label="Ваша запись ответа" />}
-      {error && (
-        <p role="status" className="inline-notice">
-          {error}
-        </p>
-      )}
-    </div>
-  );
-}
-function BrowserRecorder({
-  recordingKey,
-  onRecorded,
-}: {
-  recordingKey: string;
-  onRecorded?: () => void;
-}) {
-  const [recording, setRecording] = useState(false),
-    [busy, setBusy] = useState(false),
-    [url, setUrl] = useState(""),
-    [error, setError] = useState("");
-  const recorder = useRef<MediaRecorder | null>(null),
-    stream = useRef<MediaStream | null>(null),
-    mounted = useRef(true),
-    urlRef = useRef(""),
-    callback = useRef(onRecorded);
-  callback.current = onRecorded;
-  function assign(blob: Blob) {
-    if (urlRef.current) URL.revokeObjectURL(urlRef.current);
-    urlRef.current = URL.createObjectURL(blob);
-    setUrl(urlRef.current);
-  }
-  useEffect(() => {
-    mounted.current = true;
-    getRecording(recordingKey)
-      .then((blob) => {
-        if (blob && mounted.current) {
-          assign(blob);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      mounted.current = false;
-      if (recorder.current?.state === "recording") recorder.current.stop();
-      stream.current?.getTracks().forEach((t) => t.stop());
-      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
-    };
-  }, [recordingKey]);
-  async function start() {
-    setError("");
-    if (
-      !navigator.mediaDevices?.getUserMedia ||
-      typeof MediaRecorder === "undefined"
-    ) {
-      setError(
-        "Запись недоступна в этом браузере. Можно ответить вслух или написать ответ.",
-      );
-      return;
-    }
-    setBusy(true);
-    try {
-      const s = await navigator.mediaDevices.getUserMedia({ audio: true });
-      if (!mounted.current) {
-        s.getTracks().forEach((t) => t.stop());
-        return;
-      }
-      stream.current = s;
-      const r = new MediaRecorder(s);
-      recorder.current = r;
-      const chunks: BlobPart[] = [];
-      r.ondataavailable = (e) => {
-        if (e.data.size) chunks.push(e.data);
-      };
-      r.onstop = async () => {
-        s.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunks, { type: r.mimeType || "audio/webm" });
-        if (mounted.current) {
-          setRecording(false);
-          assign(blob);
-          callback.current?.();
-        }
-        try {
-          await saveRecording(recordingKey, blob);
-        } catch {
-          if (mounted.current)
-            setError(
-              "Запись можно прослушать сейчас, но сохранить её не удалось.",
-            );
-        }
-      };
-      r.start();
-      setRecording(true);
-    } catch {
-      setError(
-        "Микрофон недоступен или доступ не разрешён. Вы можете ответить вслух или текстом.",
-      );
-    } finally {
-      if (mounted.current) setBusy(false);
-    }
-  }
-  return (
-    <div className="recorder">
-      <div className="recorder-controls">
-        <button
-          className={
-            "button " + (recording ? "button-recording" : "button-outline")
-          }
-          disabled={busy}
-          onClick={() => (recording ? recorder.current?.stop() : void start())}
-        >
-          {busy ? (
-            <LoaderCircle size={17} className="spin" />
-          ) : recording ? (
-            <Square size={16} />
-          ) : (
-            <Mic size={17} />
-          )}{" "}
-          {recording
-            ? "Остановить запись"
-            : url
-              ? "Записать заново"
-              : "Записать ответ"}
-        </button>
-        <span className="microcopy">
-          {recording ? "Идёт запись…" : "Запись остаётся в этом браузере"}
-        </span>
-      </div>
-      {url && <audio controls src={url} aria-label="Ваша запись ответа" />}
-      {error && (
-        <p role="status" className="inline-notice">
-          {error}
-        </p>
-      )}
-    </div>
-  );
 }
