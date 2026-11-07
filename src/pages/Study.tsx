@@ -14,6 +14,7 @@ import {
   continueLesson,
   helpLesson,
   newDraft,
+  sessionProgress,
   submitLessonAnswer,
   type Draft,
 } from "../lib/progress";
@@ -42,7 +43,7 @@ export function Study() {
           <CheckCheck size={42} />
         </div>
         <Pill>Занятие завершено</Pill>
-        <h1>Ещё немного греческого с тобой.</h1>
+        <h1>Готово. Можно отдохнуть.</h1>
         <p>
           {first.length
             ? "Ответы сохранены. Когда вернуться к фразам и сколько нового добавить, мы подберём сами."
@@ -73,20 +74,23 @@ export function Study() {
             <strong>
               {correct < first.length / 2
                 ? "В следующем занятии будет больше закрепления"
-                : "Следующее занятие подстроится под твои ответы"}
+                : "Следующие повторы уже назначены"}
             </strong>
-            <p>Можно продолжить небольшим блоком или отдохнуть.</p>
+            <p>Если хочется продолжить — ещё один короткий блок, до 6 шагов.</p>
           </div>
         </div>
         <div className="dialog-actions">
-          <button className="button button-primary" onClick={() => study()}>
-            Ещё немного <ArrowRight size={18} />
-          </button>
           <button
-            className="button button-outline"
+            className="button button-primary"
             onClick={() => navigate("today")}
           >
             На сегодня достаточно
+          </button>
+          <button
+            className="button button-outline"
+            onClick={() => study(undefined, { short: true })}
+          >
+            Ещё немного <ArrowRight size={18} />
           </button>
         </div>
       </div>
@@ -104,10 +108,14 @@ export function Study() {
       drafts: { ...prev.drafts, [draftKey]: next },
     }));
   }
-  const remaining = s.items
-    .slice(s.index)
-    .filter((entry) => entry.phase === "recall").length;
-  const total = s.items.filter((entry) => entry.phase === "recall").length;
+  const step = sessionProgress(s);
+  const phaseItems = s.items.filter((entry) => entry.phase === item.phase);
+  const phasePosition = s.items
+    .slice(0, s.index + 1)
+    .filter((entry) => entry.phase === item.phase).length;
+  const lastLearn =
+    learn &&
+    !s.items.slice(s.index + 1).some((entry) => entry.phase === "learn");
   return (
     <>
       <div className="study-top">
@@ -136,16 +144,31 @@ export function Study() {
           </button>
         </div>
       </div>
-      <div className="study-progress">
+      <div
+        className="study-progress"
+        role="progressbar"
+        aria-label="Прогресс занятия"
+        aria-valuemin={0}
+        aria-valuemax={step.total}
+        aria-valuenow={step.completed}
+        aria-valuetext={`Шаг ${step.current} из ${step.total}`}
+      >
         <div className="progress-track">
           <i
             style={{
-              width: ((total - remaining) / Math.max(1, total)) * 100 + "%",
+              width: (step.completed / Math.max(1, step.total)) * 100 + "%",
             }}
           />
         </div>
-        <span>Осталось {remaining}</span>
+        <span>
+          Шаг {step.current} из {step.total}
+        </span>
       </div>
+      <p className="study-stage">
+        {s.short ? "Короткий блок · " : ""}
+        {learn ? "Знакомство" : "Практика"} · {phasePosition} из{" "}
+        {phaseItems.length}
+      </p>
       <section className="study-card" key={s.id + ":" + s.index}>
         <div className="study-card-top">
           <Pill tone={learn ? "sand" : "green"}>
@@ -168,7 +191,7 @@ export function Study() {
             <PhraseContext phrase={card} />
             <div className="learning-note">
               <Sparkles size={18} />
-              <span>Скоро потренируем эту фразу в коротком задании.</span>
+              <span>Затем — короткая практика этих фраз.</span>
             </div>
             <button
               className="button button-primary button-large"
@@ -176,7 +199,7 @@ export function Study() {
                 update((prev) => advanceLearning(prev, s.id, s.index))
               }
             >
-              Дальше <ArrowRight size={18} />
+              {lastLearn ? "К упражнениям" : "Дальше"} <ArrowRight size={18} />
             </button>
           </>
         ) : (
@@ -253,7 +276,10 @@ export function Study() {
                   className="button button-primary button-large"
                   onClick={() => update((prev) => continueLesson(prev))}
                 >
-                  Продолжить <ArrowRight size={18} />
+                  {s.index === s.items.length - 1
+                    ? "Завершить занятие"
+                    : "Продолжить"}{" "}
+                  <ArrowRight size={18} />
                 </button>
               </div>
             )}

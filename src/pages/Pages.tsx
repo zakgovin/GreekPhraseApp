@@ -27,6 +27,7 @@ import {
 } from "../lib/content";
 import {
   adaptivePlan,
+  sessionProgress,
   dayKey,
   emptyProgress,
   exportProgress,
@@ -68,6 +69,12 @@ export function Today() {
     (p.session && !p.session.completedAt) ||
     (p.savedSession && !p.savedSession.completedAt),
   );
+  const activeSession =
+    p.session && !p.session.completedAt
+      ? p.session
+      : p.savedSession && !p.savedSession.completedAt
+        ? p.savedSession
+        : null;
   return (
     <>
       <div className="page-heading">
@@ -106,7 +113,9 @@ export function Today() {
           <div className="hero-meta">
             <span>
               <Clock3 size={15} />
-              Около {plan.minutes} минут
+              {activeSession
+                ? `Осталось шагов: ${sessionProgress(activeSession).remaining}`
+                : `Шагов: ${plan.steps} · около ${plan.minutes} мин`}
             </span>
             <span>
               <Sparkles size={15} />

@@ -78,6 +78,10 @@ export interface Session {
   stepStartedAt?: string | null;
   stepElapsedMs?: number;
   planReason?: string;
+  short?: boolean;
+}
+export interface LessonOptions {
+  short?: boolean;
 }
 export interface Practice {
   id: string;
@@ -208,6 +212,7 @@ const sessionSchema = z
     stepStartedAt: date.nullable().optional(),
     stepElapsedMs: z.number().finite().min(0).optional(),
     planReason: z.string().max(500).optional(),
+    short: z.boolean().optional(),
   })
   .refine((x) => x.index <= x.items.length, "Некорректный шаг занятия");
 const draftSchema = z.object({
@@ -451,7 +456,12 @@ export function migrateProgress(p: Progress): Progress {
     savedSession: upgrade(p.savedSession),
   };
 }
-export function adaptivePlan(p: Progress, now = new Date()) {
+export function adaptivePlan(
+  p: Progress,
+  now = new Date(),
+  options: LessonOptions = {},
+) {
+  const budget = options.short ? 120 : 300;
   const recent = p.reviews
     .filter((r) => r.method && !r.retry && r.scheduled !== false)
     .slice(-24);
@@ -491,11 +501,20 @@ export function adaptivePlan(p: Progress, now = new Date()) {
       seen.add(group);
       return true;
     })
-    .slice(0, Math.max(4, Math.min(10, Math.floor(300 / pace))));
-  const roomForNew = Math.max(
-    0,
-    Math.floor((300 - dueForRound.length * pace) / (pace + 20)),
-  );
+    .slice(
+      0,
+      Math.max(1, Math.min(options.short ? 4 : 10, Math.floor(budget / pace))),
+    );
+  const roomForNew =
+    due.length > dueForRound.length
+      ? 0
+      : Math.max(
+          0,
+          Math.min(
+            Math.floor((budget - dueForRound.length * pace) / (pace + 20)),
+            options.short ? Math.floor((6 - dueForRound.length) / 2) : Infinity,
+          ),
+        );
   const fresh = freshCandidates(p, now)
     .filter((card) => {
       const group = family(card.id);
@@ -512,6 +531,21 @@ export function adaptivePlan(p: Progress, now = new Date()) {
         : recent.length >= 4 && accuracy! >= 0.9
           ? "Ответы становятся увереннее — можно добавить немного нового."
           : "Начнём с небольшого занятия и подстроим темп по ответам.";
+  const rehearsal: SessionItem[] =
+    dueForRound.length || fresh.length
+      ? []
+      : Object.entries(p.memory)
+          .filter(([key]) => key.endsWith(":phrase"))
+          .sort((a, b) => Date.parse(a[1].dueAt) - Date.parse(b[1].dueAt))
+          .slice(0, Math.max(1, Math.min(4, Math.floor(budget / pace))))
+          .map(([key]) => ({
+            cardId: key.split(":")[0],
+            skill: "phrase",
+            phase: "recall",
+            isNew: false,
+            exercise: exerciseFor(p, key.split(":")[0]),
+            practiceOnly: true,
+          }));
   return {
     due: dueForRound,
     fresh,
@@ -519,9 +553,15 @@ export function adaptivePlan(p: Progress, now = new Date()) {
     accuracy,
     pace,
     reason,
+    rehearsal,
+    steps: dueForRound.length + fresh.length * 2 + rehearsal.length,
     minutes: Math.max(
       1,
-      Math.ceil((dueForRound.length * pace + fresh.length * (pace + 20)) / 60),
+      Math.ceil(
+        ((dueForRound.length + rehearsal.length) * pace +
+          fresh.length * (pace + 20)) /
+          60,
+      ),
     ),
     dueTotal: due.length,
   };
@@ -534,8 +574,9 @@ export function createSession(
   p: Progress,
   now = new Date(),
   practice?: { cardId: string; skill: Skill },
+  options: LessonOptions = {},
 ): Session {
-  const plan = adaptivePlan(p, now);
+  const plan = adaptivePlan(p, now, options);
   let recall: SessionItem[];
   if (practice) {
     const skill = practice.skill === "phrase" ? "phrase" : practice.skill;
@@ -569,19 +610,7 @@ export function createSession(
       })),
     ];
     // Optional extra practice remains possible even when scheduled reviews are not due yet.
-    if (!recall.length)
-      recall = Object.entries(p.memory)
-        .filter(([key]) => key.endsWith(":phrase"))
-        .sort((a, b) => Date.parse(a[1].dueAt) - Date.parse(b[1].dueAt))
-        .slice(0, 4)
-        .map(([key]) => ({
-          cardId: key.split(":")[0],
-          skill: "phrase",
-          phase: "recall",
-          isNew: false,
-          exercise: exerciseFor(p, key.split(":")[0]),
-          practiceOnly: true,
-        }));
+    if (!recall.length) recall = plan.rehearsal;
   }
   const items: SessionItem[] = [
     ...recall
@@ -604,6 +633,7 @@ export function createSession(
     stepStartedAt: now.toISOString(),
     stepElapsedMs: 0,
     planReason: plan.reason,
+    short: Boolean(options.short),
   };
 }
 export function pauseSession(s: Session, now = new Date()): Session {
@@ -631,6 +661,18 @@ export function resumeSession(s: Session, now = new Date()): Session {
         lastResumedAt: now.toISOString(),
         stepStartedAt: s.feedback ? null : now.toISOString(),
       };
+}
+export function sessionProgress(s: Session) {
+  const total = s.items.length;
+  const completed = s.completedAt
+    ? total
+    : Math.min(total, s.index + (s.feedback ? 1 : 0));
+  return {
+    total,
+    completed,
+    current: Math.min(total, s.index + 1),
+    remaining: total - completed,
+  };
 }
 export function advanceLearning(
   p: Progress,
@@ -859,31 +901,8 @@ export function continueLesson(p: Progress, now = new Date()): Progress {
       ? null
       : (next.session.lastResumedAt ?? now.toISOString()),
   };
-  if (!feedback.correct && !item.retry) {
-    const unrelated = new Set<string>();
-    let insertAt = -1;
-    for (let i = current.index; i < current.items.length; i++) {
-      if (
-        family(current.items[i].cardId) !== family(item.cardId) &&
-        current.items[i].phase === "recall"
-      )
-        unrelated.add(family(current.items[i].cardId));
-      if (unrelated.size >= 2) {
-        insertAt = i + 1;
-        break;
-      }
-    }
-    if (insertAt >= 0) {
-      const items = [...current.items];
-      items.splice(insertAt, 0, {
-        ...item,
-        isNew: false,
-        retry: true,
-        practiceOnly: true,
-      });
-      return { ...next, session: { ...current, items, completedAt: null } };
-    }
-  }
+  // The lesson has a fixed end. Again already schedules the missed phrase;
+  // adaptation takes effect in the next block instead of moving this finish line.
   return { ...next, session: current };
 }
 export function getStats(p: Progress, now = new Date()) {

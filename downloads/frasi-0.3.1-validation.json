@@ -1,0 +1,37 @@
+{
+  "version": "0.3.1",
+  "versionCode": 5,
+  "releaseTag": "v0.3.1",
+  "bytes": 9577029,
+  "sha256": "9ef84975e89cbef61de88d6eb2f365472d6ada9f441b813c6ad07d1f448798f0",
+  "unitTests": {
+    "passed": 36,
+    "total": 36
+  },
+  "signatureMatchesPrevious": true,
+  "certificateSha256": "342bb98a687fe761d71b5d9a6c780d73b8fb2c21f03fae067e50deb60c42699a",
+  "webAssetsVerifiedInsideApk": 27,
+  "imagesVerifiedInsideApk": 8,
+  "lint": {
+    "Error": 0,
+    "Warning": 16
+  },
+  "nativeRuntimeVerified": false,
+  "physicalSpeechRecognitionVerified": false,
+  "media": {
+    "version": "0.3.1",
+    "sha256": "9ef84975e89cbef61de88d6eb2f365472d6ada9f441b813c6ad07d1f448798f0",
+    "pdfFiles": 0,
+    "audioClips": 2,
+    "publicBytes": 4998711,
+    "clipHashesVerifiedInsideApk": true
+  },
+  "browserTests": {
+    "passed": 28,
+    "total": 28,
+    "dimensions": ["1440x1000", "390x844"],
+    "additionalLayout": "360x800",
+    "touchEvents": "Chromium CDP touchStart/touchMove/touchEnd",
+    "keyboardWordReordering": true
+  }
+}

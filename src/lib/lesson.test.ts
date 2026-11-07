@@ -5,6 +5,7 @@ import {
   checkLessonAnswer,
   lessonExercise,
   matchesPhrase,
+  wordTile,
 } from "./lesson";
 
 describe("Automatic language exercises", () => {
@@ -19,17 +20,47 @@ describe("Automatic language exercises", () => {
         [...task.options]
           .sort((a, b) => a.id - b.id)
           .map((option) => option.text),
-      ).toEqual(task.words);
+      ).toEqual(task.tiles);
       expect(
         checkLessonAnswer(
           card.el,
           task,
-          task.words.join(" "),
+          task.tiles.join(" "),
           "words",
           card.id,
         ),
       ).toBe(true);
     }
+  });
+  it("does not reveal the beginning or the end through capitalization and punctuation", () => {
+    expect(lessonExercise("Με λένε Ζαχάρ.", "assemble", "names").tiles).toEqual(
+      ["με", "λένε", "Ζαχάρ"],
+    );
+    expect(
+      lessonExercise("Μένω στη Λάρνακα, στην Κύπρο.", "assemble", "home").tiles,
+    ).toEqual(["μένω", "στη", "Λάρνακα", "στην", "Κύπρο"]);
+    expect(wordTile("Καλημέρα!")).toBe("καλημέρα");
+    expect(wordTile("Πώς")).toBe("πώς");
+    expect(wordTile("λένε;")).toBe("λένε");
+    expect(wordTile("09.30.")).toBe("09.30");
+    expect(wordTile("12,50")).toBe("12,50");
+  });
+  it("preserves proper names and abbreviations even at the start of an exercise", () => {
+    for (const word of [
+      "Ζαχάρ",
+      "Λάρνακα",
+      "Gaijin",
+      "Κύπρο",
+      "Δευτέρα",
+      "Ιουνίου",
+      "Αγίου",
+      "Α2",
+      "SMS",
+    ])
+      expect(wordTile(word + ".")).toBe(word);
+    expect(
+      lessonExercise("Ζαχάρ, έλα εδώ.", "assemble", "name-first").tiles[0],
+    ).toBe("Ζαχάρ");
   });
   it("makes every missing-word question answerable and rejects unrelated words", () => {
     for (const card of phrases) {

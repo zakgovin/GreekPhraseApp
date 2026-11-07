@@ -4,8 +4,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import type { Progress } from "./lib/progress";
-import type { Skill } from "./lib/content";
+import type { Progress, LessonOptions } from "./lib/progress";
 export type Page =
   | "today"
   | "conversation"
@@ -20,7 +19,7 @@ export interface AppState {
   navigate: (page: Page) => void;
   source: (ids: string[]) => void;
   notify: (message: string) => void;
-  study: (id?: string, skill?: Skill) => void;
+  study: (id?: string, options?: LessonOptions) => void;
   about: () => void;
 }
 export const AppContext = createContext<AppState | null>(null);

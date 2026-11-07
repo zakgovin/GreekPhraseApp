@@ -18,8 +18,12 @@ import { Study } from "./pages/Study";
 import { Conversations } from "./pages/Conversations";
 import { Exams } from "./pages/Exams";
 import { Modal, Sources, SpeechProvider } from "./components/common";
-import { createSession, pauseSession, resumeSession } from "./lib/progress";
-import { type Skill } from "./lib/content";
+import {
+  createSession,
+  pauseSession,
+  resumeSession,
+  type LessonOptions,
+} from "./lib/progress";
 import { SpeechAnswerProvider } from "./components/Answer";
 import "./styles.css";
 import { initialProgress, saveProgress } from "./lib/storage";
@@ -125,7 +129,7 @@ export default function App() {
     location.hash = next;
     if (next === page) window.scrollTo({ top: 0, behavior: "smooth" });
   }
-  function study(id?: string, _skill?: Skill) {
+  function study(id?: string, options?: LessonOptions) {
     const now = new Date();
     update((p) => {
       if (id) {
@@ -144,13 +148,13 @@ export default function App() {
       }
       if (p.session && !p.session.completedAt)
         return { ...p, session: resumeSession(p.session, now) };
-      if (p.savedSession && !p.savedSession.completedAt)
+      if (p.savedSession && !p.savedSession.completedAt && !options?.short)
         return {
           ...p,
           session: resumeSession(p.savedSession, now),
           savedSession: null,
         };
-      return { ...p, session: createSession(p, now) };
+      return { ...p, session: createSession(p, now, undefined, options) };
     });
     navigate("study");
   }

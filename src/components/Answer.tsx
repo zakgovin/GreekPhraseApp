@@ -6,7 +6,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { ArrowRight, HelpCircle, Keyboard, Mic, Square, X } from "lucide-react";
+import { ArrowRight, HelpCircle, Keyboard, Mic, Square } from "lucide-react";
+import { WordOrder } from "./WordOrder";
 import {
   lessonExercise,
   type AnswerMethod,
@@ -138,7 +139,7 @@ export function Answer({
   }
   const answer =
     mode === "words"
-      ? selected.map((id) => exercise.words[id]).join(" ")
+      ? selected.map((id) => exercise.tiles[id]).join(" ")
       : draft.text;
   const completeChoice = kind === "complete" && mode === "words";
   return (
@@ -184,39 +185,11 @@ export function Answer({
           {mode === "words" ? (
             <>
               <p className="exercise-instruction">Собери фразу из урока</p>
-              <div
-                className="sentence-answer"
-                aria-label="Твой ответ"
-                aria-live="polite"
-                lang="el"
-              >
-                {!selected.length && (
-                  <span className="answer-placeholder">
-                    Нажимай на слова в нужном порядке
-                  </span>
-                )}
-                {selected.map((id) => (
-                  <button
-                    type="button"
-                    className="word-chip selected"
-                    key={id}
-                    aria-label={"Убрать слово " + exercise.words[id]}
-                    onClick={() =>
-                      patch(
-                        {},
-                        {
-                          order: selected
-                            .filter((value) => value !== id)
-                            .join(","),
-                        },
-                      )
-                    }
-                  >
-                    {exercise.words[id]}
-                    <X size={12} aria-hidden="true" />
-                  </button>
-                ))}
-              </div>
+              <WordOrder
+                words={exercise.tiles}
+                order={selected}
+                onChange={(order) => patch({}, { order: order.join(",") })}
+              />
               <div
                 className="word-bank"
                 role="group"

@@ -17,7 +17,9 @@ async function startLesson(page: Page) {
     .getByRole("button", { name: "Начать занятие", exact: true })
     .click();
   for (let i = 0; i < 5; i++)
-    await page.getByRole("button", { name: "Дальше", exact: true }).click();
+    await page
+      .getByRole("button", { name: /^(Дальше|К упражнениям)$/ })
+      .click();
 }
 test("guided lessons check answers, persist feedback and continue beyond three new phrases", async ({
   page,
@@ -25,6 +27,10 @@ test("guided lessons check answers, persist feedback and continue beyond three n
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await startLesson(page);
+  await expect(page.locator('.word-bank [data-word-id="0"]')).toHaveText("με");
+  await expect(page.locator('.word-bank [data-word-id="2"]')).toHaveText(
+    "Ζαχάρ",
+  );
   await expect(
     page.getByRole("heading", { name: "Меня зовут Захар.", exact: true }),
   ).toBeVisible();
@@ -51,11 +57,15 @@ test("guided lessons check answers, persist feedback and continue beyond three n
     path: testInfo.outputPath("checked-answer.png"),
     fullPage: true,
   });
-  await page.getByRole("button", { name: "Продолжить", exact: true }).click();
+  await page
+    .getByRole("button", { name: /^(Продолжить|Завершить занятие)$/ })
+    .click();
   for (let i = 0; i < 4; i++) {
     await assemble(page);
     await expect(page.getByText("Верно!", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Продолжить", exact: true }).click();
+    await page
+      .getByRole("button", { name: /^(Продолжить|Завершить занятие)$/ })
+      .click();
   }
   await expect(
     page.getByText("Занятие завершено", { exact: true }),
@@ -83,9 +93,56 @@ test("guided lessons check answers, persist feedback and continue beyond three n
   expect(
     continued.session.items.some((item: { isNew: boolean }) => item.isNew),
   ).toBe(true);
+  const fixedLength = continued.session.items.length;
+  expect(fixedLength).toBeLessThanOrEqual(6);
+  expect(continued.session.short).toBe(true);
+  await page.screenshot({
+    path: testInfo.outputPath("short-block.png"),
+    fullPage: true,
+  });
+  for (let index = 0; index < fixedLength; index++) {
+    const bar = page.getByRole("progressbar", { name: "Прогресс занятия" });
+    await expect(bar).toHaveAttribute("aria-valuemax", String(fixedLength));
+    await expect(bar).toHaveAttribute("aria-valuenow", String(index));
+    await expect(
+      page.getByText(`Шаг ${index + 1} из ${fixedLength}`, { exact: true }),
+    ).toBeVisible();
+    if (index === 1) {
+      await page.reload();
+      await expect(bar).toHaveAttribute("aria-valuenow", String(index));
+    }
+    if (
+      await page
+        .getByRole("button", { name: /^(Дальше|К упражнениям)$/ })
+        .count()
+    ) {
+      await page
+        .getByRole("button", { name: /^(Дальше|К упражнениям)$/ })
+        .click();
+    } else {
+      await page.getByRole("button", { name: "Не помню", exact: true }).click();
+      await expect(bar).toHaveAttribute("aria-valuenow", String(index + 1));
+      await page
+        .getByRole("button", { name: /^(Продолжить|Завершить занятие)$/ })
+        .click();
+    }
+  }
+  await expect(
+    page.getByRole("heading", {
+      name: "Готово. Можно отдохнуть.",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(page.locator(".dialog-actions .button-primary")).toHaveText(
+    "На сегодня достаточно",
+  );
+  await page.screenshot({
+    path: testInfo.outputPath("finished-block.png"),
+    fullPage: true,
+  });
   expect(errors).toEqual([]);
 });
-test("help is processed automatically and returns the phrase after other exercises", async ({
+test("help schedules repetition without extending the current block", async ({
   page,
 }) => {
   await startLesson(page);
@@ -93,17 +150,20 @@ test("help is processed automatically and returns the phrase after other exercis
   await expect(
     page.getByText("Запомним эту фразу", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Продолжить", exact: true }).click();
+  await page
+    .getByRole("button", { name: /^(Продолжить|Завершить занятие)$/ })
+    .click();
   const data = await page.evaluate(() =>
     JSON.parse(localStorage.getItem("frasi.progress.v1")!),
   );
   expect(data.reviews).toHaveLength(1);
   expect(data.reviews[0].rating).toBe(1);
   expect(data.reviews[0].assisted).toBe(true);
-  const retry = data.session.items.findIndex(
-    (item: { retry?: boolean }) => item.retry,
-  );
-  expect(retry).toBeGreaterThanOrEqual(data.session.index + 2);
+  expect(data.session.items).toHaveLength(10);
+  expect(
+    data.session.items.some((item: { retry?: boolean }) => item.retry),
+  ).toBe(false);
+  expect(data.memory[data.reviews[0].cardId + ":phrase"]).toBeDefined();
   await page.goto("/#settings");
   await expect(
     page.getByLabel("Новых фраз в день", { exact: true }),
@@ -158,7 +218,9 @@ test("conversation checks actual typed answers without self-grades", async ({
     await expect(
       page.getByText("Ответ получился!", { exact: true }),
     ).toBeVisible();
-    await page.getByRole("button", { name: "Продолжить", exact: true }).click();
+    await page
+      .getByRole("button", { name: /^(Продолжить|Завершить занятие)$/ })
+      .click();
   }
   await expect(
     page.getByRole("heading", { name: "Разговор состоялся." }),
@@ -300,7 +362,9 @@ test("unsupported voice has no passive recorder and wrong typed words are checke
   await expect(
     page.getByText("Давай закрепим эту формулировку", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Продолжить", exact: true }).click();
+  await page
+    .getByRole("button", { name: /^(Продолжить|Завершить занятие)$/ })
+    .click();
   const data = await page.evaluate(() =>
     JSON.parse(localStorage.getItem("frasi.progress.v1")!),
   );
@@ -531,7 +595,9 @@ test("ASR bridge errors do not grade the learner and recognized words are actual
   await expect(page.getByText(/Точность акцента не оценивается/)).toBeVisible();
   await page.getByRole("button", { name: "Проверить", exact: true }).click();
   await expect(page.getByText("Верно!", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Продолжить", exact: true }).click();
+  await page
+    .getByRole("button", { name: /^(Продолжить|Завершить занятие)$/ })
+    .click();
   data = await page.evaluate(() =>
     JSON.parse(localStorage.getItem("frasi.progress.v1")!),
   );
@@ -548,7 +614,9 @@ test("upgrading old progress keeps history and due dates with automatic workload
 }) => {
   await startLesson(page);
   await assemble(page);
-  await page.getByRole("button", { name: "Продолжить", exact: true }).click();
+  await page
+    .getByRole("button", { name: /^(Продолжить|Завершить занятие)$/ })
+    .click();
   const legacy = await page.evaluate(() => {
     const data = JSON.parse(localStorage.getItem("frasi.progress.v1")!);
     delete data.adaptiveVersion;
@@ -595,4 +663,153 @@ test("upgrading old progress keeps history and due dates with automatic workload
   await expect(
     page.getByLabel("Новых фраз в день", { exact: true }),
   ).toHaveCount(0);
+});
+
+async function selectedWordIds(page: Page) {
+  return page
+    .locator(".sentence-answer [data-selected-word-id]")
+    .evaluateAll((words) =>
+      words.map((word) => Number(word.getAttribute("data-selected-word-id"))),
+    );
+}
+async function moveWord(page: Page, from: number, to: number, touch: boolean) {
+  const source = page.locator(`[data-selected-word-id="${from}"] .word-handle`);
+  const target = page.locator(`[data-selected-word-id="${to}"] .word-handle`);
+  await source.scrollIntoViewIfNeeded();
+  await target.scrollIntoViewIfNeeded();
+  const a = await source.boundingBox(),
+    b = await target.boundingBox();
+  expect(a).not.toBeNull();
+  expect(b).not.toBeNull();
+  const start = { x: a!.x + a!.width / 2, y: a!.y + a!.height / 2 };
+  const end = { x: b!.x + b!.width / 2, y: b!.y + b!.height / 2 };
+  if (touch) {
+    const client = await page.context().newCDPSession(page);
+    const point = (x: number, y: number) => ({
+      x,
+      y,
+      id: 1,
+      radiusX: 2,
+      radiusY: 2,
+      force: 1,
+    });
+    await client.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [point(start.x, start.y)],
+    });
+    // Touch dragging deliberately starts after a short hold so vertical scrolling still works.
+    await expect(page.locator(".word-dragging")).toHaveCount(1);
+    for (let step = 1; step <= 12; step++)
+      await client.send("Input.dispatchTouchEvent", {
+        type: "touchMove",
+        touchPoints: [
+          point(
+            start.x + ((end.x - start.x) * step) / 12,
+            start.y + ((end.y - start.y) * step) / 12,
+          ),
+        ],
+      });
+    await page.waitForTimeout(50); // Let the final collision/animation frame settle before dropping.
+    await client.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+    await client.detach();
+  } else {
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(start.x + 7, start.y);
+    await page.mouse.move(end.x, end.y, { steps: 12 });
+    await page.mouse.up();
+  }
+  await expect(page.locator(".word-dragging")).toHaveCount(0);
+}
+
+test("long answers support moving words across lines and preserve duplicate words after reload", async ({
+  page,
+}, testInfo) => {
+  await page.goto("/#phrases");
+  await page
+    .getByLabel("Поиск фраз", { exact: true })
+    .fill("чтобы общаться с людьми");
+  await page.locator(".phrase-tile").click();
+  await page
+    .getByRole("button", { name: "Потренировать фразу", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "К упражнениям", exact: true })
+    .click();
+  const count = await page.locator(".word-bank [data-word-id]").count();
+  expect(count).toBe(12);
+  await expect(page.locator('.word-bank [data-word-id="0"]')).toHaveText(
+    "μαθαίνω",
+  );
+  await expect(page.locator('.word-bank [data-word-id="11"]')).toHaveText(
+    "Κύπρο",
+  );
+  const ids = Array.from({ length: count }, (_, i) => i);
+  for (const id of [...ids.slice(1), 0])
+    await page.locator(`.word-bank [data-word-id="${id}"]`).click();
+  await page.locator('[data-selected-word-id="0"] .word-handle').click();
+  await expect(page.locator(".sentence-answer .selected")).toHaveCount(count);
+  await moveWord(page, 0, 1, testInfo.project.name === "mobile");
+  await expect.poll(() => selectedWordIds(page)).toEqual(ids);
+  await page.reload();
+  await expect.poll(() => selectedWordIds(page)).toEqual(ids);
+  await page.locator('[data-selected-word-id="5"] .word-remove').click();
+  await expect(page.locator('[data-selected-word-id="3"]')).toHaveCount(1);
+  await expect(page.locator('.word-bank [data-word-id="5"]')).toBeEnabled();
+  await expect(page.locator('.word-bank [data-word-id="3"]')).toBeDisabled();
+  await page.locator('.word-bank [data-word-id="5"]').click();
+  await moveWord(page, 5, 6, testInfo.project.name === "mobile");
+  await expect.poll(() => selectedWordIds(page)).toEqual(ids);
+  await expect(
+    page.getByRole("link", { name: "К содержимому", exact: true }),
+  ).not.toBeInViewport();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth + 1,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: testInfo.outputPath("reordered-long-answer.png"),
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "Проверить", exact: true }).click();
+  await expect(page.getByText("Верно!", { exact: true })).toBeVisible();
+  await page
+    .getByRole("button", { name: "Завершить занятие", exact: true })
+    .click();
+  const data = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("frasi.progress.v1")!),
+  );
+  expect(data.reviews).toHaveLength(1);
+  expect(data.reviews[0]).toMatchObject({
+    rating: 3,
+    method: "words",
+    evidence: "guided",
+  });
+});
+
+test("word order is accessible from the keyboard and cancelling keeps the previous answer", async ({
+  page,
+}) => {
+  await startLesson(page);
+  for (const id of [1, 0, 2])
+    await page.locator(`.word-bank [data-word-id="${id}"]`).click();
+  const handle = page.locator('[data-selected-word-id="0"] .word-handle');
+  await handle.focus();
+  await handle.press("Space");
+  await expect(page.locator(".word-dragging")).toHaveCount(1);
+  await handle.press("ArrowLeft");
+  await handle.press("Escape");
+  await expect.poll(() => selectedWordIds(page)).toEqual([1, 0, 2]);
+  await handle.focus();
+  await handle.press("Space");
+  await expect(page.locator(".word-dragging")).toHaveCount(1);
+  await handle.press("ArrowLeft");
+  await handle.press("Space");
+  await expect.poll(() => selectedWordIds(page)).toEqual([0, 1, 2]);
+  await page.getByRole("button", { name: "Проверить", exact: true }).click();
+  await expect(page.getByText("Верно!", { exact: true })).toBeVisible();
 });

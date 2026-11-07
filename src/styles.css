@@ -107,7 +107,7 @@ hr {
   padding: 14px;
   border-radius: 10px;
 }
-.skip-link:focus {
+.skip-link:focus-visible {
   top: 12px;
 }
 .app-shell {
@@ -1678,6 +1678,14 @@ input::placeholder {
 .study-progress > span {
   font-size: 10px;
   color: #646f57;
+  white-space: nowrap;
+}
+.study-stage {
+  max-width: 800px;
+  margin: -10px auto 20px;
+  color: #626f53;
+  font-size: 12px;
+  text-align: right;
 }
 .study-card {
   max-width: 800px;
@@ -3781,6 +3789,60 @@ input::placeholder {
 .word-chip.selected {
   background: #e7f1da;
   border-color: #9eb98b;
+}
+.sortable-word.word-chip {
+  padding: 0;
+  gap: 0;
+  justify-content: space-between;
+  user-select: none;
+}
+.word-handle,
+.word-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  min-height: 44px;
+  border-radius: 10px;
+}
+.word-handle {
+  gap: 4px;
+  padding: 8px 2px 8px 8px;
+  cursor: grab;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-touch-callout: none;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.word-handle svg {
+  flex-shrink: 0;
+  opacity: 0.45;
+}
+.word-remove {
+  min-width: 44px;
+  flex-shrink: 0;
+  padding: 0 8px;
+  cursor: pointer;
+}
+.word-remove:hover {
+  background: #d4e5c3;
+}
+.word-dragging {
+  opacity: 0.3;
+}
+.word-overlay {
+  box-shadow: 0 8px 24px #193b3140;
+  cursor: grabbing;
+}
+.word-order-hint {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #626f53;
+  margin: 9px 0 0;
 }
 .word-chip:disabled {
   opacity: 0.22;

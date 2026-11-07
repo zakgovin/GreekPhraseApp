@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { family, phraseById } from "./content";
+import { phrases, phraseById } from "./content";
 import { lessonExercise } from "./lesson";
 import {
   adaptivePlan,
@@ -17,6 +17,7 @@ import {
   resumeSession,
   revealAnswer,
   submitLessonAnswer,
+  sessionProgress,
   type Progress,
 } from "./progress";
 const start = new Date("2026-11-07T09:00:00Z");
@@ -127,27 +128,122 @@ describe("Adaptive lessons without manual limits or self-grades", () => {
       guided.memory[memoryKey("a2-001", "phrase")].dueAt,
     );
   });
-  it("returns a missed phrase only after other phrases and bounds remedial retries", () => {
-    let p = recall(emptyProgress());
-    const failed = p.session!.items[p.session!.index];
-    p = answer(p, false, new Date(start.getTime() + 12000));
-    const retry = p.session!.items.findIndex(
-      (item) => item.retry && item.cardId === failed.cardId,
+  it("keeps the announced end even when every answer needs help", () => {
+    let p = {
+      ...emptyProgress(),
+      session: createSession(emptyProgress(), start),
+    };
+    const original = p.session.items;
+    while (!p.session.completedAt) {
+      const before = sessionProgress(p.session);
+      if (p.session.items[p.session.index].phase === "learn")
+        p = advanceLearning(
+          p,
+          p.session.id,
+          p.session.index,
+          start,
+        ) as typeof p;
+      else p = continueLesson(helpLesson(p, start), start) as typeof p;
+      expect(p.session.items).toEqual(original);
+      expect(sessionProgress(p.session).completed).toBeGreaterThan(
+        before.completed,
+      );
+    }
+    expect(p.reviews).toHaveLength(5);
+    expect(
+      p.reviews.every((review) => review.rating === 1 && review.assisted),
+    ).toBe(true);
+    expect(
+      Object.values(p.memory).every(
+        (memory) => Date.parse(memory.dueAt) > start.getTime(),
+      ),
+    ).toBe(true);
+    expect(sessionProgress(p.session)).toMatchObject({
+      completed: 10,
+      total: 10,
+      remaining: 0,
+    });
+  });
+  it("makes explicit continuation a shorter finite block without imposing a daily cap", () => {
+    const done = round(emptyProgress(), true);
+    const at = new Date(start.getTime() + 120000);
+    const plan = adaptivePlan(done, at, { short: true });
+    const next = createSession(done, at, undefined, { short: true });
+    expect(next.items.length).toBe(plan.steps);
+    expect(next.items.length).toBeGreaterThan(0);
+    expect(next.items.length).toBeLessThanOrEqual(6);
+    expect(next.items.length).toBeLessThan(
+      createSession(done, at).items.length,
     );
-    expect(retry).toBeGreaterThanOrEqual(p.session!.index + 2);
-    const between = p.session!.items.slice(p.session!.index, retry);
+    expect(next.items.some((item) => item.isNew)).toBe(true);
     expect(
-      between.filter(
-        (item) =>
-          item.phase === "recall" &&
-          family(item.cardId) !== family(failed.cardId),
-      ).length,
-    ).toBeGreaterThanOrEqual(2);
-    expect(p.session!.items[retry].practiceOnly).toBe(true);
-    const finished = round(emptyProgress(), false);
+      parseProgress(JSON.stringify({ ...done, session: next })).session?.short,
+    ).toBe(true);
+  });
+  it("counts introductions, checked feedback and restored sessions in the same progress", () => {
+    let p = {
+      ...emptyProgress(),
+      session: createSession(emptyProgress(), start),
+    };
+    expect(sessionProgress(p.session)).toMatchObject({
+      total: 10,
+      completed: 0,
+      current: 1,
+    });
+    p = advanceLearning(p, p.session.id, 0, start) as typeof p;
+    expect(sessionProgress(p.session)).toMatchObject({
+      total: 10,
+      completed: 1,
+      current: 2,
+    });
+    while (p.session.items[p.session.index].phase === "learn")
+      p = advanceLearning(p, p.session.id, p.session.index, start) as typeof p;
+    p = submitLessonAnswer(
+      p,
+      phraseById[p.session.items[p.session.index].cardId].el,
+      "words",
+      start,
+    ) as typeof p;
+    expect(sessionProgress(p.session)).toMatchObject({
+      completed: 6,
+      total: 10,
+    });
+    const restored = parseProgress(JSON.stringify(p));
+    expect(sessionProgress(restored.session!)).toEqual(
+      sessionProgress(p.session),
+    );
     expect(
-      finished.reviews.filter((review) => review.retry).length,
-    ).toBeLessThanOrEqual(5);
+      sessionProgress(continueLesson(restored, start).session!),
+    ).toMatchObject({ completed: 6, total: 10, current: 7 });
+  });
+  it("keeps a short block bounded when reviews are overdue or all cards are already known", () => {
+    const done = round(emptyProgress(), true),
+      tomorrow = new Date(start.getTime() + 86400000);
+    const plan = adaptivePlan(done, tomorrow, { short: true });
+    const session = createSession(done, tomorrow, undefined, { short: true });
+    expect(session.items.length).toBe(plan.steps);
+    expect(session.items.every((item) => !item.isNew)).toBe(true);
+    expect(session.items.length).toBeLessThanOrEqual(6);
+    const template = done.memory["a2-001:phrase"];
+    const known = {
+      ...done,
+      memory: Object.fromEntries(
+        phrases.map((card) => [
+          card.id + ":phrase",
+          {
+            ...template,
+            cardId: card.id,
+            dueAt: new Date(tomorrow.getTime() + 86400000).toISOString(),
+          },
+        ]),
+      ),
+    };
+    const early = createSession(known, tomorrow, undefined, { short: true });
+    expect(early.items.length).toBe(
+      adaptivePlan(known, tomorrow, { short: true }).steps,
+    );
+    expect(early.items.length).toBeGreaterThan(0);
+    expect(early.items.every((item) => item.practiceOnly)).toBe(true);
   });
   it("does not postpone scheduled repetition after an optional early rehearsal", () => {
     let p = answer(

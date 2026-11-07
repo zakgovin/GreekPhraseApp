@@ -10,7 +10,7 @@ export default defineConfig({
     baseURL: "http://127.0.0.1:4173",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
-    timezoneId: "Europe/Moscow",
+    timezoneId: "Asia/Nicosia",
     launchOptions: {
       executablePath:
         process.env.CHROMIUM_PATH ||

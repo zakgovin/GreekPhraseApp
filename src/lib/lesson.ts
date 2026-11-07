@@ -5,6 +5,7 @@ export type AnswerMethod = "words" | "text" | "speech";
 export interface LessonExercise {
   kind: ExerciseKind;
   words: string[];
+  tiles: string[];
   options: { id: number; text: string }[];
   missing: number;
 }
@@ -76,6 +77,29 @@ export function matchesPhrase(
 }
 export const phraseWords = (text: string) =>
   text.trim().split(/\s+/).filter(Boolean);
+
+// Reviewed proper spellings stay intact. Sentence capitals and edge punctuation
+// are removed from the tiles so they cannot reveal the word order.
+const properWords = new Set(
+  "Ζαχάρ Άπω Ανατολή Αγίου Λαζάρου Κύπρος Κύπρο Κύπρου Λάρνακα Λάρνακας Μπλαγκοβέστσενσκ Ρωσία Ρωσίας Δευτέρα Τρίτη Τετάρτη Πέμπτη Παρασκευή Σάββατο Κυριακή Δεκεμβρίου Ιουνίου"
+    .split(" ")
+    .map(answerKey),
+);
+export function wordTile(word: string) {
+  const clean = word.replace(
+    /^[.,;!?;··:…«»“”"()\[\]{}]+|[.,;!?;··:…«»“”"()\[\]{}]+$/gu,
+    "",
+  );
+  const letters = clean.replace(/[^\p{L}]/gu, "");
+  const abbreviation =
+    (letters.length > 1 || /\d/u.test(clean)) &&
+    letters === letters.toUpperCase();
+  return properWords.has(answerKey(clean)) ||
+    /[a-z]/iu.test(clean) ||
+    abbreviation
+    ? clean
+    : clean.toLocaleLowerCase("el-GR");
+}
 function hash(value: string) {
   let result = 2166136261;
   for (const character of value)
@@ -98,11 +122,7 @@ const stopWords = new Set(
     .map(answerKey),
 );
 const vocabulary = [
-  ...new Set(
-    phrases
-      .flatMap((phrase) => phraseWords(phrase.el))
-      .map((word) => word.replace(/[.,;!?·]/g, "")),
-  ),
+  ...new Set(phrases.flatMap((phrase) => phraseWords(phrase.el)).map(wordTile)),
 ];
 
 export function lessonExercise(
@@ -111,6 +131,7 @@ export function lessonExercise(
   seed: string,
 ): LessonExercise {
   const words = phraseWords(text);
+  const tiles = words.map(wordTile);
   const candidates = words
     .map((word, index) => ({ word, index }))
     .filter(
@@ -120,7 +141,7 @@ export function lessonExercise(
   const chosen = candidates.length
     ? candidates[hash(seed) % candidates.length]
     : { word: words[0], index: 0 };
-  const target = chosen.word.replace(/[.,;!?·]/g, "");
+  const target = wordTile(chosen.word);
   const cardId = phrases.find((phrase) => phrase.el === text)?.id;
   const distractors = shuffled(
     vocabulary.filter(
@@ -144,10 +165,10 @@ export function lessonExercise(
           seed,
         )
       : shuffled(
-          words.map((word, id) => ({ id, text: word })),
+          tiles.map((word, id) => ({ id, text: word })),
           seed,
         );
-  return { kind, words, options, missing: chosen.index };
+  return { kind, words, tiles, options, missing: chosen.index };
 }
 
 export function checkLessonAnswer(
