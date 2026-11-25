@@ -1045,6 +1045,18 @@ test("a chosen examiner question is checked without accepting an invented profes
   await page
     .getByLabel("Ответ по-гречески", { exact: true })
     .fill("Θα ήθελα να είμαι γιατρός.");
+  if (test.info().project.name === "mobile") {
+    const input = page.getByLabel("Ответ по-гречески", { exact: true });
+    await page.setViewportSize({ width: 390, height: 390 });
+    await expect(page.locator(".mobile-navigation")).toBeHidden();
+    await expect(page.locator(".examiner-practice h2")).toBeInViewport({
+      ratio: 1,
+    });
+    await expect(input).toBeInViewport({ ratio: 1 });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.locator(".mobile-navigation")).toBeVisible();
+    await expect(input).toHaveValue("Θα ήθελα να είμαι γιατρός.");
+  }
   await page.getByRole("button", { name: "Проверить", exact: true }).click();
   await expect(
     page.getByText("Посмотри на пример ответа", { exact: true }),

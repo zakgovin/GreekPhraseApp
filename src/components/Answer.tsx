@@ -71,6 +71,21 @@ export function Answer({
   onRecognitionFailure?: () => void;
   instruction?: string;
 }) {
+  const textInput = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    function keepQuestionAboveInput() {
+      const field = textInput.current;
+      if (
+        field &&
+        document.activeElement === field &&
+        window.matchMedia("(max-width: 700px) and (max-height: 550px)").matches
+      ) {
+        field.scrollIntoView({ block: "end", behavior: "instant" });
+      }
+    }
+    window.addEventListener("resize", keepQuestionAboveInput);
+    return () => window.removeEventListener("resize", keepQuestionAboveInput);
+  }, []);
   const voice = useSpeechAnswer();
   const exercise = lessonExercise(expected, kind, seed);
   const mode: AnswerMethod =
@@ -222,6 +237,7 @@ export function Answer({
                   : "Напиши изученную фразу по-гречески"}
               </span>
               <textarea
+                ref={textInput}
                 aria-label="Ответ по-гречески"
                 lang="el"
                 autoCapitalize="off"
