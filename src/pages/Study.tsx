@@ -18,11 +18,11 @@ import {
   submitLessonAnswer,
   type Draft,
 } from "../lib/progress";
-import { PhraseContext, Pill, SourceButton, Speak } from "../components/common";
+import { PhraseContext, Pill, Speak } from "../components/common";
 import { Answer } from "../components/Answer";
 
 export function Study() {
-  const { progress: p, update, navigate, study, source } = useApp();
+  const { progress: p, update, navigate, study } = useApp();
   const s = p.session;
   if (!s)
     return (
@@ -285,12 +285,6 @@ export function Study() {
             )}
           </>
         )}
-        <div className="study-card-footer">
-          {(learn || feedback) && (
-            <SourceButton ids={card.sources} onClick={source} />
-          )}
-          <span>Сохраняем твой прогресс</span>
-        </div>
       </section>
     </>
   );

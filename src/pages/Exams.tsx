@@ -27,7 +27,7 @@ import { phrases, wordCount, type Skill } from "../lib/content";
 import { checkListening } from "../lib/exercises";
 import { Answer } from "../components/Answer";
 import { matchesPhrase } from "../lib/lesson";
-import { Pill, SourceButton, Speak } from "../components/common";
+import { Pill, Speak } from "../components/common";
 
 type Selection = { kind: "writing" | "image" | "listening"; id: string };
 export function Exams() {
@@ -265,16 +265,11 @@ function Header({
   title,
   subtitle,
   onBack,
-  source,
-  onSource,
 }: {
   title: string;
   subtitle: string;
   onBack: () => void;
-  source: string;
-  onSource?: () => void;
 }) {
-  const { source: showSource } = useApp();
   return (
     <>
       <button className="back-link" data-native-back onClick={onBack}>
@@ -286,13 +281,6 @@ function Header({
           <p className="eyebrow">{subtitle}</p>
           <h1>{title}</h1>
         </div>
-        <SourceButton
-          ids={[source]}
-          onClick={(ids) => {
-            onSource?.();
-            showSource(ids);
-          }}
-        />
       </div>
     </>
   );
@@ -333,7 +321,6 @@ function Writing({
       <Header
         title={task.title}
         subtitle={task.subtitle + " · 80–100 слов"}
-        source={task.source}
         onBack={onBack}
       />
       <div className="writing-layout">
@@ -502,7 +489,6 @@ function Picture({
       <Header
         title={task.title}
         subtitle="Описание картинки · учебный пример"
-        source={task.source}
         onBack={onBack}
       />
       <div className="picture-layout">
@@ -511,7 +497,6 @@ function Picture({
             src={"/images/" + task.image + ".png"}
             alt={"Фотография к заданию «" + task.title + "»"}
           />
-          <figcaption>Изображение из экзаменационного материала</figcaption>
         </figure>
         <section className="panel picture-answer">
           <p className="eyebrow">СОБЕРИ ПРИМЕР ОПИСАНИЯ</p>
@@ -594,15 +579,7 @@ function Listening({
   }
   return (
     <>
-      <Header
-        title={task.title}
-        subtitle={task.year + " · аудирование, задание 4"}
-        source={task.source}
-        onBack={onBack}
-        onSource={() => {
-          if (!d.shown) patch({ helped: true });
-        }}
-      />
+      <Header title={task.title} subtitle="Аудирование" onBack={onBack} />
       <div className="listening-layout">
         <section className="panel listening-player">
           <span className="stat-icon mint">
@@ -616,7 +593,7 @@ function Listening({
           <audio
             controls
             preload="metadata"
-            aria-label={"Аудиофрагмент экзамена " + task.year}
+            aria-label={"Аудиофрагмент «" + task.title + "»"}
             src={"/audio/" + task.audio.file}
             onTimeUpdate={(e) => playback(e.currentTarget.currentTime)}
             onSeeked={(e) => {
@@ -646,8 +623,7 @@ function Listening({
           )}
           {d.helped && (
             <p className="inline-notice">
-              Вы открыли источник с ответами или расшифровку. Эта попытка не
-              будет отмечена как самостоятельное аудирование.
+              Ответы с подсказкой учитываются как практика с помощью.
             </p>
           )}
         </section>

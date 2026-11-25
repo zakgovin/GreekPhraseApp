@@ -158,6 +158,9 @@ export function Answer({
     mode === "words"
       ? selected.map((id) => exercise.tiles[id]).join(" ")
       : draft.text;
+  const availableWords = exercise.options.filter(
+    (option) => !selected.includes(option.id),
+  );
   const completeChoice = kind === "complete" && mode === "words";
   return (
     <div className="checked-answer">
@@ -207,27 +210,28 @@ export function Answer({
                 order={selected}
                 onChange={(order) => patch({}, { order: order.join(",") })}
               />
-              <div
-                className="word-bank"
-                role="group"
-                aria-label="Слова для ответа"
-              >
-                {exercise.options.map((option) => (
-                  <button
-                    type="button"
-                    key={option.id}
-                    className="word-chip"
-                    data-word-id={option.id}
-                    disabled={selected.includes(option.id)}
-                    lang="el"
-                    onClick={() =>
-                      patch({}, { order: [...selected, option.id].join(",") })
-                    }
-                  >
-                    {option.text}
-                  </button>
-                ))}
-              </div>
+              {availableWords.length > 0 && (
+                <div
+                  className="word-bank"
+                  role="group"
+                  aria-label="Слова для ответа"
+                >
+                  {availableWords.map((option) => (
+                    <button
+                      type="button"
+                      key={option.id}
+                      className="word-chip"
+                      data-word-id={option.id}
+                      lang="el"
+                      onClick={() =>
+                        patch({}, { order: [...selected, option.id].join(",") })
+                      }
+                    >
+                      {option.text}
+                    </button>
+                  ))}
+                </div>
+              )}
             </>
           ) : (
             <label className="answer-input-label">

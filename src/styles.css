@@ -1733,17 +1733,6 @@ input::placeholder {
   margin: 27px auto;
   max-width: 550px;
 }
-.study-card-footer {
-  display: flex;
-  gap: 15px;
-  justify-content: space-between;
-  align-items: center;
-  border-top: 1px solid #edf0e7;
-  margin-top: 29px;
-  padding-top: 16px;
-  font-size: 9px;
-  color: #646e56;
-}
 .recall-prompt {
   font-size: 29px;
   font-weight: 450;
@@ -2185,12 +2174,6 @@ input::placeholder {
   object-fit: contain;
   display: block;
   border-radius: 5px;
-}
-.exam-photo figcaption {
-  font-size: 9px;
-  line-height: 1.7;
-  color: #646f57;
-  padding: 14px 2px 2px;
 }
 .picture-question {
   display: flex;
@@ -2968,9 +2951,9 @@ input::placeholder {
     margin-bottom: 29px;
   }
   .stat-tile {
-    padding: 13px 10px 20px;
+    padding: 12px 10px;
     display: block;
-    min-height: 130px;
+    min-height: 0;
     border-radius: 10px;
   }
   .stat-tile .stat-icon {
@@ -2985,7 +2968,8 @@ input::placeholder {
   }
   .stat-label {
     font-size: 8px;
-    line-height: 1.7;
+    line-height: 1.4;
+    min-height: 2.8em;
     margin-bottom: 4px;
   }
   .stat-tile strong {
@@ -3361,15 +3345,6 @@ input::placeholder {
     font-size: 9px;
     padding: 12px;
     gap: 9px;
-  }
-  .study-card-footer {
-    font-size: 8px;
-    gap: 8px;
-    align-items: flex-start;
-  }
-  .study-card-footer .source-button {
-    font-size: 8px;
-    padding: 0;
   }
   .recall-prompt {
     font-size: 24px;
@@ -3844,10 +3819,6 @@ input::placeholder {
   color: #626f53;
   margin: 9px 0 0;
 }
-.word-chip:disabled {
-  opacity: 0.22;
-  cursor: default;
-}
 .check-answer {
   width: 100%;
   margin: 18px 0 0;
@@ -3957,16 +3928,18 @@ input::placeholder {
   gap: 18px;
 }
 .practice-shortcuts .conversation-feature {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 25px;
-  min-height: 126px;
-  width: 100%;
+  gap: 16px;
+  padding: 20px;
+  min-height: 96px;
+}
+.practice-shortcuts .conversation-feature > svg {
+  align-self: center;
+  margin: 0;
 }
 .practice-shortcuts .conversation-feature > span {
-  flex: 1;
   text-align: left;
 }
 .practice-shortcuts .conversation-feature strong {
@@ -4026,7 +3999,20 @@ input::placeholder {
     padding: 20px;
   }
   .practice-shortcuts .conversation-feature {
-    padding: 20px;
+    gap: 12px;
+    min-height: 76px;
+    padding: 14px;
+  }
+  .practice-shortcuts .conversation-feature > svg:first-child {
+    width: 24px;
+    height: 24px;
+  }
+  .practice-shortcuts .conversation-feature strong {
+    font-size: 16px;
+    margin-bottom: 4px;
+  }
+  .practice-shortcuts .conversation-feature small {
+    font-size: 13px;
   }
 }
 
@@ -4172,9 +4158,6 @@ input::placeholder {
 .question-translation {
   color: #69735e;
   line-height: 1.6;
-}
-.examiner-practice > .source-button {
-  margin-top: 24px;
 }
 @media (max-width: 700px) {
   .exam-question-feature {

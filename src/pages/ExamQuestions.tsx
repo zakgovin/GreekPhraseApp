@@ -253,7 +253,6 @@ export function ExamQuestions() {
               </button>
             </div>
           )}
-          <SourceButton ids={[examQuestionSource]} onClick={source} />
         </section>
       </>
     );

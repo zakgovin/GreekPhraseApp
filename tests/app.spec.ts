@@ -288,11 +288,14 @@ test("exercise clips play with correct duration and transcript assistance stays 
     .locator(".audio-tile")
     .filter({ hasText: "Запись на экзамен" })
     .click();
-  await expect(page.getByLabel("Аудиофрагмент экзамена 2017")).toBeVisible();
+  await expect(
+    page.getByLabel("Аудиофрагмент «Запись на экзамен»"),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: /Источник/ })).toHaveCount(0);
   await page
     .getByRole("button", { name: "Открыть расшифровку", exact: true })
     .click();
-  const original = page.getByLabel("Аудиофрагмент экзамена 2017");
+  const original = page.getByLabel("Аудиофрагмент «Запись на экзамен»");
   await original.evaluate((el: HTMLAudioElement) => el.play());
   await expect
     .poll(() => original.evaluate((el: HTMLAudioElement) => el.currentTime))
@@ -331,7 +334,7 @@ test("exercise clips play with correct duration and transcript assistance stays 
     .locator(".audio-tile")
     .filter({ hasText: "Заказ еды по телефону" })
     .click();
-  const food = page.getByLabel("Аудиофрагмент экзамена 2018");
+  const food = page.getByLabel("Аудиофрагмент «Заказ еды по телефону»");
   await food.evaluate((el: HTMLAudioElement) => el.play());
   await expect
     .poll(() => food.evaluate((el: HTMLAudioElement) => el.currentTime))
@@ -393,6 +396,20 @@ test("all sections fit the viewport and dashboard is visually reviewable", async
     ).toBe(true);
   }
   await page.goto("/");
+  const shortcuts = page.locator(".practice-shortcuts button");
+  await expect(shortcuts).toHaveCount(2);
+  for (const shortcut of await shortcuts.all()) {
+    const [icon, text, arrow] = await shortcut
+      .locator(":scope > *")
+      .evaluateAll((nodes) =>
+        nodes.map((node) => {
+          const { top, height } = node.getBoundingClientRect();
+          return top + height / 2;
+        }),
+      );
+    expect(Math.abs(icon - text)).toBeLessThan(1);
+    expect(Math.abs(arrow - text)).toBeLessThan(1);
+  }
   await page.screenshot({
     path: testInfo.outputPath("dashboard.png"),
     fullPage: true,
@@ -514,7 +531,7 @@ test("importing an old backup keeps all 148 phrases, current counts and personal
     ),
   ).toBe(true);
   await page.goto("/#settings");
-  await expect(page.getByText("Φράση · версия 0.4.3")).toBeVisible();
+  await expect(page.getByText("Φράση · версия 0.4.4")).toBeVisible();
   await page.getByLabel("Скорость озвучки", { exact: true }).selectOption("1");
   await page.getByLabel("Файл резервной копии", { exact: true }).setInputFiles({
     name: "frasi-progress-before-new-questions.json",
@@ -818,6 +835,9 @@ test("long answers support moving words across lines and preserve duplicate word
   const ids = Array.from({ length: count }, (_, i) => i);
   for (const id of [...ids.slice(1), 0])
     await page.locator(`.word-bank [data-word-id="${id}"]`).click();
+  await expect(
+    page.getByRole("group", { name: "Слова для ответа" }),
+  ).toHaveCount(0);
   await page.locator('[data-selected-word-id="0"] .word-handle').click();
   await expect(page.locator(".sentence-answer .selected")).toHaveCount(count);
   await moveWord(page, 0, 1, testInfo.project.name === "mobile");
@@ -827,7 +847,7 @@ test("long answers support moving words across lines and preserve duplicate word
   await page.locator('[data-selected-word-id="5"] .word-remove').click();
   await expect(page.locator('[data-selected-word-id="3"]')).toHaveCount(1);
   await expect(page.locator('.word-bank [data-word-id="5"]')).toBeEnabled();
-  await expect(page.locator('.word-bank [data-word-id="3"]')).toBeDisabled();
+  await expect(page.locator('.word-bank [data-word-id="3"]')).toHaveCount(0);
   await page.locator('.word-bank [data-word-id="5"]').click();
   await moveWord(page, 5, 6, testInfo.project.name === "mobile");
   await expect.poll(() => selectedWordIds(page)).toEqual(ids);

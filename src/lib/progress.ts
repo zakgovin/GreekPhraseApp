@@ -46,6 +46,8 @@ export interface Review {
   task?: ExerciseKind;
   scheduled?: boolean;
   retry?: boolean;
+  extraPractice?: boolean;
+  completedDaily?: boolean;
 }
 export interface SessionItem {
   cardId: string;
@@ -263,6 +265,8 @@ const progressSchema = z
           task: exerciseKind.optional(),
           scheduled: z.boolean().optional(),
           retry: z.boolean().optional(),
+          extraPractice: z.boolean().optional(),
+          completedDaily: z.boolean().optional(),
         }),
       )
       .max(100000),
@@ -495,12 +499,45 @@ export function migrateProgress(p: Progress): Progress {
     savedSession: upgrade(p.savedSession),
   };
 }
+function extraExercisesYesterday(p: Progress, now: Date) {
+  const today = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  ).getTime();
+  const yesterday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() - 1,
+  ).getTime();
+  const wasYesterday = (timestamp: string) => {
+    const at = Date.parse(timestamp);
+    return at >= yesterday && at < today;
+  };
+  const finishedMain =
+    p.reviews.some((r) => r.completedDaily && wasYesterday(r.at)) ||
+    [p.session, p.savedSession].some(
+      (s) =>
+        s?.type === "daily" &&
+        !s.short &&
+        s.items.length > 0 &&
+        s.completedAt &&
+        wasYesterday(s.completedAt),
+    );
+  if (!finishedMain) return 0;
+  const extraAnswers = p.reviews.filter(
+    (r) => r.extraPractice && !r.retry && wasYesterday(r.at),
+  ).length;
+  const extraTasks = p.practice.filter((task) => wasYesterday(task.at)).length;
+  return Math.min(3, extraAnswers + extraTasks);
+}
+
 export function adaptivePlan(
   p: Progress,
   now = new Date(),
   options: LessonOptions = {},
 ) {
-  const budget = options.short ? 120 : 300;
+  const extra = options.short ? 0 : extraExercisesYesterday(p, now);
   const recent = p.reviews
     .filter((r) => r.method && !r.retry && r.scheduled !== false)
     .slice(-24);
@@ -516,6 +553,7 @@ export function adaptivePlan(
     12,
     Math.min(90, times.length ? times[Math.floor(times.length / 2)] : 35),
   );
+  const budget = options.short ? 120 : 300 + extra * (pace + 20);
   const due = dueItems(p, now).filter((item) => item.skill === "phrase");
   const delayedIndependent = recent.filter(
     (r) =>
@@ -532,6 +570,7 @@ export function adaptivePlan(
   else if (recent.length >= 4 && accuracy! < 0.8) targetNew = 3;
   else if (recent.length >= 4 && accuracy! >= 0.9)
     targetNew = delayedIndependent >= 3 ? 9 : 7;
+  targetNew += extra;
   const seen = new Set<string>();
   const dueForRound = due
     .filter((item) => {
@@ -542,7 +581,10 @@ export function adaptivePlan(
     })
     .slice(
       0,
-      Math.max(1, Math.min(options.short ? 4 : 10, Math.floor(budget / pace))),
+      Math.max(
+        1,
+        Math.min(options.short ? 4 : 10 + extra, Math.floor(budget / pace)),
+      ),
     );
   const roomForNew =
     due.length > dueForRound.length
@@ -567,16 +609,18 @@ export function adaptivePlan(
       ? "Сначала закрепим фразы, которым уже пора на повторение."
       : recentTrouble || (recent.length >= 4 && accuracy! < 0.8)
         ? "Возьмём меньше нового и спокойно закрепим трудные места."
-        : recent.length >= 4 && accuracy! >= 0.9
-          ? "Ответы становятся увереннее — можно добавить немного нового."
-          : "Начнём с небольшого занятия и подстроим темп по ответам.";
+        : extra > 0
+          ? "Вчера была дополнительная практика. Сегодня можно сделать больше."
+          : recent.length >= 4 && accuracy! >= 0.9
+            ? "Ответы становятся увереннее — можно добавить немного нового."
+            : "Начнём с небольшого занятия и подстроим темп по ответам.";
   const rehearsal: SessionItem[] =
     dueForRound.length || fresh.length
       ? []
       : Object.entries(p.memory)
           .filter(([key]) => key.endsWith(":phrase"))
           .sort((a, b) => Date.parse(a[1].dueAt) - Date.parse(b[1].dueAt))
-          .slice(0, Math.max(1, Math.min(4, Math.floor(budget / pace))))
+          .slice(0, Math.max(1, Math.min(4 + extra, Math.floor(budget / pace))))
           .map(([key]) => ({
             cardId: key.split(":")[0],
             skill: "phrase",
@@ -798,6 +842,8 @@ export function rateSession(
     lastReviewAt: updated.lastReviewAt?.toISOString() ?? null,
     ...(details?.method ? { origin: "automatic" as const } : {}),
   } as Memory;
+  const next = index + 1,
+    completed = next >= s.items.length;
   const review: Review = {
     id: s.id + ":" + index,
     cardId: item.cardId,
@@ -811,9 +857,12 @@ export function rateSession(
       details?.scheduled === false && existing ? existing.dueAt : memory.dueAt,
     engineLog: JSON.parse(JSON.stringify(revlog)),
     ...details,
+    ...(s.type === "practice" || s.short
+      ? { extraPractice: true }
+      : completed
+        ? { completedDaily: true }
+        : {}),
   };
-  const next = index + 1,
-    completed = next >= s.items.length;
   const session = {
     ...s,
     index: next,

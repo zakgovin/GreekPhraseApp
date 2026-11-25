@@ -180,6 +180,42 @@ describe("Adaptive lessons without manual limits or self-grades", () => {
       parseProgress(JSON.stringify({ ...done, session: next })).session?.short,
     ).toBe(true);
   });
+  it("plans more after yesterday's extra exercises and keeps extra blocks short", () => {
+    const main = round(emptyProgress(), true);
+    const at = new Date(start.getTime() + 120000);
+    let p = {
+      ...main,
+      session: createSession(main, at, undefined, { short: true }),
+    };
+    while (!p.session.completedAt) {
+      const s = p.session;
+      const next =
+        s.items[s.index].phase === "learn"
+          ? advanceLearning(p, s.id, s.index, at)
+          : answer(p, true, at);
+      p = { ...next, session: next.session! };
+    }
+    const restored = parseProgress(JSON.stringify(p));
+    const withoutExtra = {
+      ...restored,
+      reviews: restored.reviews.map((r) => ({
+        ...r,
+        extraPractice: undefined,
+      })),
+    };
+    const tomorrow = new Date(start.getTime() + 86400000);
+    expect(adaptivePlan(restored, tomorrow).steps).toBeGreaterThan(
+      adaptivePlan(withoutExtra, tomorrow).steps,
+    );
+    expect(adaptivePlan(restored, at)).toEqual(adaptivePlan(withoutExtra, at));
+    expect(adaptivePlan(restored, tomorrow, { short: true })).toEqual(
+      adaptivePlan(withoutExtra, tomorrow, { short: true }),
+    );
+    const later = new Date(tomorrow.getTime() + 86400000);
+    expect(adaptivePlan(restored, later)).toEqual(
+      adaptivePlan(withoutExtra, later),
+    );
+  });
   it("counts introductions, checked feedback and restored sessions in the same progress", () => {
     let p = {
       ...emptyProgress(),

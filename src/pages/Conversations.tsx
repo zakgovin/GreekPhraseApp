@@ -12,7 +12,7 @@ import { useApp } from "../state";
 import { newDraft, type Draft } from "../lib/progress";
 import { matchesPhrase } from "../lib/lesson";
 import { Answer } from "../components/Answer";
-import { Pill, SourceButton, Speak } from "../components/common";
+import { Pill, Speak } from "../components/common";
 
 export function Conversations() {
   const { progress: p, navigate } = useApp();
@@ -133,7 +133,7 @@ function ConversationPractice({
   task: Conversation;
   onBack: () => void;
 }) {
-  const { progress: p, update, source } = useApp();
+  const { progress: p, update } = useApp();
   const d = p.drafts[task.id] ?? newDraft(),
     turn = task.turns[d.turn];
   function patch(next: Draft) {
@@ -265,7 +265,6 @@ function ConversationPractice({
       </div>
       <div className="practice-guide">
         <p>{task.context}</p>
-        <SourceButton ids={task.sources} onClick={source} />
       </div>
       <section className="panel conversation-practice">
         <p className="eyebrow">ВОПРОС СОБЕСЕДНИКА</p>
