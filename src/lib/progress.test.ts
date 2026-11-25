@@ -56,19 +56,41 @@ function complete(p: Progress) {
   return next;
 }
 describe("Reviewed content and exercise semantics", () => {
-  it("preserves the 122 reviewed cards and adds unique personal answers with valid sources", () => {
-    expect(baseContent.cards).toHaveLength(122);
+  it("uses the active reviewed cards and adds unique personal answers with valid sources", () => {
+    expect(baseContent.cards).toHaveLength(114);
     expect(baseContent.cards.filter((c) => c.kind === "personal")).toHaveLength(
-      45,
+      41,
     );
-    expect(phrases).toHaveLength(157);
-    expect(phrases.filter((c) => c.kind === "personal")).toHaveLength(80);
+    expect(phrases).toHaveLength(148);
+    expect(phrases.filter((c) => c.kind === "personal")).toHaveLength(75);
     expect(new Set(phrases.map((c) => c.id)).size).toBe(phrases.length);
-    expect(phrases.slice(0, 122)).toEqual(baseContent.cards);
-    expect(questionContent.cards).toHaveLength(35);
+    expect(phrases.slice(0, 114)).toEqual(baseContent.cards);
+    expect(questionContent.cards).toHaveLength(34);
     for (const c of phrases) {
       expect(c.el).not.toMatch(/…|\.{3}|_{2,}/);
       for (const id of c.sources) expect(sources[id]).toBeDefined();
+    }
+  });
+  it("imports retired cards in history and skips them in active and saved lessons", () => {
+    const p = attempt("a2-001");
+    const activeKey = memoryKey("a2-001", "speaking");
+    p.memory[memoryKey("a2-017", "speaking")] = p.memory[activeKey];
+    p.reviews.push({ ...p.reviews[0], id: "retired-review", cardId: "a2-017" });
+    const session = createSession(p, now, {
+      cardId: "a2-001",
+      skill: "speaking",
+    });
+    const active = session.items[0];
+    session.items = [active, { ...active, cardId: "a2-017" }, active];
+    session.index = 1;
+    p.session = p.savedSession = session;
+    const restored = parseProgress(exportProgress(p));
+    expect(restored.reviews).toEqual(p.reviews);
+    expect(restored.memory[activeKey]).toEqual(p.memory[activeKey]);
+    expect(restored.memory[memoryKey("a2-017", "speaking")]).toBeUndefined();
+    for (const lesson of [restored.session, restored.savedSession]) {
+      expect(lesson?.index).toBe(1);
+      expect(lesson?.items).toEqual([active, active]);
     }
   });
   it("finds Greek without accents and treats final sigma consistently", () => {

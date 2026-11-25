@@ -31,7 +31,7 @@ describe("Personal examiner questions", () => {
     }
   });
   it("reuses existing cards and keeps the new source separate from official exam PDFs", () => {
-    expect(data.cards).toHaveLength(35);
+    expect(data.cards).toHaveLength(34);
     expect(
       examQuestions.filter((q) =>
         q.cardIds.every((id) => Number(id.slice(3)) <= 122),
@@ -44,7 +44,7 @@ describe("Personal examiner questions", () => {
       pdf_page: null,
     });
     expect(new Set(phrases.map((card) => card.el)).size).toBe(phrases.length);
-    expect(family("a2-123")).toBe(family("a2-106"));
+    expect(family("a2-123")).toBe(family("a2-105"));
     for (const word of data.properWords)
       expect(wordTile(word + ".")).toBe(word);
   });

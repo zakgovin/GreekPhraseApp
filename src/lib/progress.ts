@@ -158,9 +158,20 @@ export function dayKey(
 }
 
 const date = z.string().datetime({ offset: true });
-const id = z
-  .string()
-  .refine((x) => Object.hasOwn(phraseById, x), "Неизвестная карточка");
+const retiredCards = new Set([
+  "a2-017",
+  "a2-023",
+  "a2-045",
+  "a2-046",
+  "a2-047",
+  "a2-048",
+  "a2-103",
+  "a2-106",
+  "a2-143",
+]);
+const knownCard = (id: string) =>
+  Object.hasOwn(phraseById, id) || retiredCards.has(id);
+const id = z.string().refine(knownCard, "Неизвестная карточка");
 const skill = z.enum(["understanding", "speaking", "writing", "phrase"]);
 const exerciseKind = z.enum(["assemble", "complete", "recall"]);
 const answerMethod = z.enum(["words", "text", "speech"]);
@@ -278,7 +289,7 @@ const progressSchema = z
     for (const key of Object.keys(p.memory)) {
       const [cid, s] = key.split(":");
       if (
-        !Object.hasOwn(phraseById, cid) ||
+        !knownCard(cid) ||
         !["understanding", "speaking", "writing", "phrase"].includes(s) ||
         key !== memoryKey(cid, s as Skill)
       )
@@ -308,7 +319,35 @@ const progressSchema = z
 export function parseProgress(text: string): Progress {
   const raw = JSON.parse(text);
   const obj = raw?.app === "frasi" ? raw.progress : raw;
-  return migrateProgress(progressSchema.parse(obj) as unknown as Progress);
+  const p = migrateProgress(progressSchema.parse(obj) as unknown as Progress);
+  for (const key of Object.keys(p.memory)) {
+    if (retiredCards.has(key.split(":")[0])) delete p.memory[key];
+  }
+  for (const session of [p.session, p.savedSession]) {
+    if (!session || session.completedAt) continue;
+    const pending = session.items.slice(session.index);
+    if (!pending.some((item) => retiredCards.has(item.cardId))) continue;
+    // Keep completed indices stable because review IDs include the step index.
+    session.items = [
+      ...session.items.slice(0, session.index),
+      ...pending.filter((item) => !retiredCards.has(item.cardId)),
+    ];
+    for (
+      let i = pending.findIndex((item) => retiredCards.has(item.cardId));
+      i < pending.length;
+      i++
+    )
+      delete p.drafts["study:" + session.id + ":" + (session.index + i)];
+    if (retiredCards.has(pending[0].cardId)) {
+      session.feedback = null;
+      session.revealed = session.assisted = false;
+      session.stepElapsedMs = 0;
+      session.stepStartedAt = null;
+    }
+    if (session.index === session.items.length)
+      session.completedAt = new Date().toISOString();
+  }
+  return p;
 }
 export function exportProgress(progress: Progress) {
   return JSON.stringify(

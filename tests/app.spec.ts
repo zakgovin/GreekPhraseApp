@@ -176,7 +176,7 @@ test("library search ignores Greek accents and shows source attribution", async 
   page,
 }) => {
   await page.goto("/#phrases");
-  await expect(page.locator(".phrase-tile")).toHaveCount(157);
+  await expect(page.locator(".phrase-tile")).toHaveCount(148);
   await page.getByLabel("Поиск фраз", { exact: true }).fill("γειτονια");
   await expect(page.locator(".phrase-tile")).toHaveCount(1);
   await page.locator(".phrase-tile").click();
@@ -493,7 +493,7 @@ test("backup export restores settings and invalid import leaves them intact", as
   ).toHaveValue("0.65");
 });
 
-test("importing an old backup keeps all 157 phrases, current counts and personal answers", async ({
+test("importing an old backup keeps all 148 phrases, current counts and personal answers", async ({
   page,
 }, testInfo) => {
   await startLesson(page);
@@ -514,7 +514,7 @@ test("importing an old backup keeps all 157 phrases, current counts and personal
     ),
   ).toBe(true);
   await page.goto("/#settings");
-  await expect(page.getByText("Φράση · версия 0.4.2")).toBeVisible();
+  await expect(page.getByText("Φράση · версия 0.4.3")).toBeVisible();
   await page.getByLabel("Скорость озвучки", { exact: true }).selectOption("1");
   await page.getByLabel("Файл резервной копии", { exact: true }).setInputFiles({
     name: "frasi-progress-before-new-questions.json",
@@ -528,11 +528,11 @@ test("importing an old backup keeps all 157 phrases, current counts and personal
     page.getByLabel("Скорость озвучки", { exact: true }),
   ).toHaveValue("0.85");
   await page.goto("/#phrases");
-  await expect(page.locator(".phrase-tile")).toHaveCount(157);
-  await expect(page.getByText(/^Всего фраз: 157\./)).toBeVisible();
-  await expect(page.getByText("Фраз о вас: 80", { exact: true })).toBeVisible();
+  await expect(page.locator(".phrase-tile")).toHaveCount(148);
+  await expect(page.getByText(/^Всего фраз: 148\./)).toBeVisible();
+  await expect(page.getByText("Фраз о вас: 75", { exact: true })).toBeVisible();
   await expect(page.locator('.sidebar a[href="#phrases"] small')).toHaveText(
-    "157",
+    "148",
   );
   await expect(
     page.locator(".phrase-tile h3").filter({
@@ -543,10 +543,10 @@ test("importing an old backup keeps all 157 phrases, current counts and personal
     path: testInfo.outputPath("correct-course-count.png"),
   });
   await page.getByLabel("Тип фразы", { exact: true }).selectOption("personal");
-  await expect(page.locator(".phrase-tile")).toHaveCount(80);
+  await expect(page.locator(".phrase-tile")).toHaveCount(75);
   await page.goto("/#progress");
   await expect(page.locator(".big-stat").first().locator("small")).toHaveText(
-    "/ 157",
+    "/ 148",
   );
   await page.reload();
   const restored = await page.evaluate(() =>
@@ -555,7 +555,7 @@ test("importing an old backup keeps all 157 phrases, current counts and personal
   expect(restored.reviews).toEqual(legacy.progress.reviews);
   expect(restored.memory).toEqual(legacy.progress.memory);
   await page.goto("/#phrases");
-  await expect(page.locator(".phrase-tile")).toHaveCount(157);
+  await expect(page.locator(".phrase-tile")).toHaveCount(148);
   await page.goto("/#questions");
   await expect(page.locator(".exam-question")).toHaveCount(38);
 });
