@@ -514,7 +514,7 @@ test("importing an old backup keeps all 157 phrases, current counts and personal
     ),
   ).toBe(true);
   await page.goto("/#settings");
-  await expect(page.getByText("Φράση · версия 0.4.1")).toBeVisible();
+  await expect(page.getByText("Φράση · версия 0.4.2")).toBeVisible();
   await page.getByLabel("Скорость озвучки", { exact: true }).selectOption("1");
   await page.getByLabel("Файл резервной копии", { exact: true }).setInputFiles({
     name: "frasi-progress-before-new-questions.json",
